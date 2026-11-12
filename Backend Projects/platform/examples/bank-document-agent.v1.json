@@ -1,0 +1,141 @@
+{
+  "tenantId": "demo-agent-bank",
+  "policyId": "bank-document-agent-policy",
+  "version": 1,
+  "effectiveFrom": "2026-11-12T00:00:00Z",
+  "caseGrouping": {
+    "sameVerifiedSubject": true,
+    "joinWindowDays": 30,
+    "closedCaseBehavior": "CREATE_LINKED_CASE"
+  },
+  "caseTypes": [
+    {
+      "id": "KYC_REVIEW",
+      "requiredAlertTypes": [
+        "KYC_SOURCE_OF_FUNDS"
+      ],
+      "priority": 10
+    }
+  ],
+  "steps": [
+    {
+      "id": "source_of_funds_review",
+      "name": "Review source of funds",
+      "owner": "HUMAN",
+      "required": true,
+      "destinationId": "source_of_funds",
+      "dataPoints": [
+        "customer.sourceOfFunds"
+      ],
+      "completionEvidence": [
+        "source_of_funds_assessment"
+      ],
+      "activation": {
+        "allAlertTypes": [
+          "KYC_SOURCE_OF_FUNDS"
+        ],
+        "anyAlertTypes": [],
+        "caseTypes": []
+      }
+    },
+    {
+      "id": "bank_document_review",
+      "name": "Review bank documents",
+      "owner": "AGENT_THEN_HUMAN",
+      "required": true,
+      "destinationId": "external_bank_documents",
+      "dataPoints": [
+        "bank.documents"
+      ],
+      "completionEvidence": [
+        "document_review"
+      ],
+      "activation": {
+        "allAlertTypes": [
+          "KYC_SOURCE_OF_FUNDS"
+        ],
+        "anyAlertTypes": [],
+        "caseTypes": []
+      },
+      "agent": {
+        "type": "BANK_DOCUMENT_REVIEW",
+        "requireHumanReview": true,
+        "instructions": "Review supplied bank documents for the declared salary source of funds. Identify the account holder, statement period, employer and salary credit details. If these details are missing or contradictory, list specific gaps and request more information. Treat document assertions as claims, not verified authenticity. Produce cited findings for human review; do not make a case disposition."
+      }
+    },
+    {
+      "id": "bank_extra_check",
+      "name": "Optional bank follow-up",
+      "owner": "HUMAN",
+      "required": false,
+      "destinationId": "external_bank_documents",
+      "dataPoints": [
+        "bank.documents"
+      ],
+      "completionEvidence": [
+        "follow_up_note"
+      ],
+      "activation": {
+        "allAlertTypes": [
+          "KYC_SOURCE_OF_FUNDS"
+        ],
+        "anyAlertTypes": [],
+        "caseTypes": []
+      }
+    }
+  ],
+  "destinations": [
+    {
+      "destinationId": "external_bank_documents",
+      "kind": "BUILT_IN",
+      "workspace": "CASE_INVESTIGATION",
+      "sectionId": "bank-documents",
+      "focusField": "documents",
+      "contextMapping": {
+        "caseId": "case.id",
+        "customerId": "case.primarySubjectId"
+      }
+    }
+  ],
+  "reviewStages": [
+    {
+      "id": "KYC_ANALYST",
+      "permittedActions": [
+        "COMPLETE_STEP",
+        "ESCALATE"
+      ],
+      "nextStages": [
+        "KYC_APPROVER"
+      ],
+      "actionTargets": {
+        "ESCALATE": [
+          "KYC_APPROVER"
+        ]
+      }
+    },
+    {
+      "id": "KYC_APPROVER",
+      "permittedActions": [
+        "APPROVE_CLOSE",
+        "RETURN_FOR_REWORK"
+      ],
+      "nextStages": [
+        "KYC_ANALYST"
+      ],
+      "actionTargets": {
+        "RETURN_FOR_REWORK": [
+          "KYC_ANALYST"
+        ]
+      }
+    }
+  ],
+  "agentAuthority": {
+    "permittedActions": [],
+    "allowedCaseTypes": []
+  },
+  "closureRules": {
+    "autonomousCaseTypes": [],
+    "requireIndependentCheck": true,
+    "humanApprovalStage": "KYC_APPROVER"
+  }
+}

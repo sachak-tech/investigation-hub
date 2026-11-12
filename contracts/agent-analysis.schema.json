@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "Citation": {
+      "additionalProperties": false,
+      "properties": {
+        "evidenceType": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Evidencetype",
+          "type": "string"
+        },
+        "documentId": {
+          "format": "uuid",
+          "title": "Documentid",
+          "type": "string"
+        },
+        "startLine": {
+          "minimum": 1,
+          "title": "Startline",
+          "type": "integer"
+        },
+        "endLine": {
+          "minimum": 1,
+          "title": "Endline",
+          "type": "integer"
+        },
+        "excerpt": {
+          "maxLength": 12000,
+          "minLength": 1,
+          "title": "Excerpt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidenceType",
+        "documentId",
+        "startLine",
+        "endLine",
+        "excerpt"
+      ],
+      "title": "Citation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "findings": {
+      "description": "A substantive 2-4 sentence source-grounded summary with uncertainties, never a status label",
+      "maxLength": 20000,
+      "minLength": 80,
+      "title": "Findings",
+      "type": "string"
+    },
+    "citations": {
+      "items": {
+        "$ref": "#/$defs/Citation"
+      },
+      "maxItems": 50,
+      "title": "Citations",
+      "type": "array"
+    },
+    "gaps": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Gaps",
+      "type": "array"
+    },
+    "recommendation": {
+      "enum": [
+        "READY_FOR_REVIEW",
+        "NEEDS_INFORMATION"
+      ],
+      "title": "Recommendation",
+      "type": "string"
+    }
+  },
+  "required": [
+    "findings",
+    "citations",
+    "gaps",
+    "recommendation"
+  ],
+  "title": "Cited bank document agent analysis for human review",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://investigation-hub.example/contracts/agent-analysis/v1"
+}

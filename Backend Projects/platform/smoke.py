@@ -18,13 +18,15 @@ URLS = {
 }
 
 
-def request(service, path, method="GET", payload=None, correlation_id=None, actor_id=None):
+def request(service, path, method="GET", payload=None, correlation_id=None, actor_id=None, tenant_id=None):
     data = None if payload is None else json.dumps(payload).encode("utf-8")
     headers = {} if data is None else {"Content-Type": "application/json"}
     if correlation_id:
         headers["X-Correlation-Id"] = correlation_id
     if actor_id:
         headers["X-Actor-Id"] = actor_id
+    if tenant_id:
+        headers["X-Tenant-Id"] = tenant_id
     req = urllib.request.Request(URLS[service] + path, data=data, headers=headers, method=method)
     try:
         with urllib.request.urlopen(req, timeout=5) as response:

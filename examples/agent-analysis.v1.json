@@ -1,0 +1,7 @@
+{
+  "findings": "The supplied synthetic statement claims a salary of 5000 synthetic units from Example Employer. This is a document assertion and has not been independently authenticated; a human must review the source evidence.",
+  "citations": [{"evidenceType": "document_review", "documentId": "99dd44c4-1a0b-4ead-99f2-7499c0e52e22",
+    "startLine": 2, "endLine": 2, "excerpt": "Source of funds: salary from Example Employer."}],
+  "gaps": [],
+  "recommendation": "READY_FOR_REVIEW"
+}

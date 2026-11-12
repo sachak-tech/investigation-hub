@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://investigation-hub.example/contracts/task-completion/v1",
+  "title": "Evidence-backed human task completion submission",
+  "type": "object", "additionalProperties": false,
+  "required": ["commandId", "expectedCaseRevision", "expectedPlaybookRevision", "taskId", "findings", "citations"],
+  "properties": {
+    "commandId": {"type": "string", "format": "uuid"},
+    "expectedCaseRevision": {"type": "integer", "minimum": 1},
+    "expectedPlaybookRevision": {"type": "integer", "minimum": 1},
+    "taskId": {"type": "string", "minLength": 1},
+    "findings": {"type": "string", "minLength": 1, "maxLength": 100000},
+    "citations": {"type": "array", "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["evidenceType", "documentId", "startLine", "endLine", "excerpt"],
+      "properties": {
+        "evidenceType": {"type": "string", "minLength": 1},
+        "documentId": {"type": "string", "format": "uuid"},
+        "startLine": {"type": "integer", "minimum": 1},
+        "endLine": {"type": "integer", "minimum": 1},
+        "excerpt": {"type": "string", "minLength": 1}
+      }
+    }}
+  }
+}

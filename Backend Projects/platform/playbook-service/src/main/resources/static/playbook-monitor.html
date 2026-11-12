@@ -37,9 +37,11 @@
     .step.completed { border-color: #89bc97; background: #f1faf3; }
     .step.available, .step.enabled { border-style: dashed; }
     .name { font-size: 14px; font-weight: 750; margin-bottom: 8px; }
+    .name a { color: #087f78; text-decoration: underline; text-underline-offset: 3px; }
     .badge { display: inline-block; padding: 4px 9px; border-radius: 100px; background: #e9f0f3; color: #496878; font-size: 11px; font-weight: 800; text-transform: uppercase; }
     .badge + .badge { margin-left: 6px; }
     .badge.requirement { background: #dfeefa; color: #1d5b86; }
+    .badge.optional { background: #fff0d5; color: #875a13; }
     .badge.not-required { background: #eef1f3; color: #60727e; }
     .active .badge { background: #bfece1; color: #006b60; }
     .completed .badge { background: #d7f0dc; color: #236b37; }
@@ -70,7 +72,7 @@
     </section>
     <section class="panel">
       <h2>Case step diagram</h2>
-      <p class="hint">Required by policy means this step must be completed for this case. Other model steps are not selected for the current case; they are not optional investigation tasks. This view refreshes every three seconds.</p>
+      <p class="hint">Required steps must be completed before closure. Optional steps may be completed but do not block closure. Other model steps were not selected for this case. This view refreshes every three seconds.</p>
       <div id="groups"></div>
     </section>
   </main>
@@ -101,21 +103,36 @@
       $("message").classList.toggle("error", error);
     }
 
-    function stepCard(name, item, waitingFor = [], required = false) {
+    function stepCard(name, item, waitingFor = [], requirementType = "other", navigation = null) {
       const card = document.createElement("div");
       const state = item?.state || "not started";
       card.className = "step " + state.toLowerCase();
       const title = document.createElement("div");
       title.className = "name";
       title.textContent = name;
+      if (navigation?.available) {
+        const link = document.createElement("a");
+        link.textContent = name;
+        link.href = "/step-workspace.html?caseId=" + encodeURIComponent(navigation.caseId)
+          + "&stepId=" + encodeURIComponent(navigation.stepId);
+        title.replaceChildren(link);
+      }
       const badge = document.createElement("span");
       badge.className = "badge";
       badge.textContent = state;
       card.append(title, badge);
       const requirement = document.createElement("span");
-      requirement.className = "badge " + (required ? "requirement" : "not-required");
-      requirement.textContent = required ? "Required by policy" : "Not required for this case";
+      requirement.className = "badge " + (requirementType === "required" ? "requirement"
+        : requirementType === "optional" ? "optional" : "not-required");
+      requirement.textContent = requirementType === "required" ? "Required by policy"
+        : requirementType === "optional" ? "Optional by policy" : "Not required for this case";
       card.append(requirement);
+      if (navigation && !navigation.available) {
+        const unavailable = document.createElement("div");
+        unavailable.className = "detail";
+        unavailable.textContent = navigation.unavailableReason;
+        card.append(unavailable);
+      }
       if (state === "available" && waitingFor.length) {
         const waiting = document.createElement("div");
         waiting.className = "waiting";
@@ -131,9 +148,12 @@
       return card;
     }
 
-    function render(view, history) {
+    function render(view, history, navigation) {
+      const navigationByStep = new Map(navigation.map(item => [item.stepId, item]));
       const byDefinition = new Map(history.map(item => [item.definitionId, item]));
       for (const item of view.steps) byDefinition.set(item.definitionId, item);
+      const byId = new Map([...history, ...view.steps].map(item => [item.id, item]));
+      const dynamicByStep = new Map((view.dynamicSteps || []).map(step => [step.stepId, step]));
       const dependencies = {
         combined_risk_review: ["transactionReviewTask", "kycReviewTask"],
         cross_risk_assessment: view.caseType === "SANCTIONS_AND_PEP_REVIEW"
@@ -145,15 +165,24 @@
         .map(id => byDefinition.get(id)?.name || id);
       const groups = new Map();
       const shown = new Set();
-      for (const stepId of view.requiredStepIds) {
-        const spec = definitions[stepId] || { name: stepId.replaceAll("_", " "), definitionId: stepId, group: "Additional policy steps" };
+      const shownItemIds = new Set();
+      const selected = [
+        ...view.requiredStepIds.map(id => [id, "required"]),
+        ...(view.optionalStepIds || []).map(id => [id, "optional"])
+      ];
+      for (const [stepId, requirement] of selected) {
+        const dynamic = dynamicByStep.get(stepId);
+        const spec = definitions[stepId] || { name: dynamic?.name || stepId.replaceAll("_", " "),
+          definitionId: stepId, group: "Additional policy steps" };
+        const item = dynamic ? byId.get(dynamic.planItemInstanceId) : byDefinition.get(spec.definitionId);
         if (!groups.has(spec.group)) groups.set(spec.group, []);
-        groups.get(spec.group).push([spec.name, byDefinition.get(spec.definitionId), waitingFor(stepId)]);
+        groups.get(spec.group).push([spec.name, item, waitingFor(stepId), requirement, navigationByStep.get(stepId)]);
         shown.add(spec.definitionId);
+        if (item) shownItemIds.add(item.id);
       }
       const otherItems = [];
       for (const item of [...view.steps, ...history]) {
-        if (shown.has(item.definitionId)) continue;
+        if (shown.has(item.definitionId) || shownItemIds.has(item.id)) continue;
         if (item.state === "available" || item.state === "enabled") continue;
         otherItems.push(item);
         shown.add(item.definitionId);
@@ -168,7 +197,9 @@
         heading.textContent = name;
         const cards = document.createElement("div");
         cards.className = "cards";
-        for (const [stepName, item, pending] of steps) cards.append(stepCard(stepName, item, pending, true));
+        for (const [stepName, item, pending, requirement, destination] of steps) {
+          cards.append(stepCard(stepName, item, pending, requirement, destination));
+        }
         group.append(heading, cards);
         container.append(group);
       }
@@ -188,7 +219,7 @@
       }
       $("caseType").textContent = view.caseType.replaceAll("_", " ");
       $("revisions").textContent = view.caseRevision + " / " + view.playbookRevision;
-      const current = [...byDefinition.values()];
+      const current = [...new Map([...history, ...view.steps].map(item => [item.id, item])).values()];
       $("counts").textContent = current.filter(item => item.state === "active").length + " / " + current.filter(item => item.state === "completed").length;
     }
 
@@ -197,10 +228,11 @@
       loading = true;
       try {
         const path = "/v1/playbooks/cases/" + encodeURIComponent(selectedCase);
-        const [view, history] = await Promise.all([fetchJson(path), fetchJson(path + "/history")]);
-        const renderKey = JSON.stringify([view, history]);
+        const [view, history, navigation] = await Promise.all([
+          fetchJson(path), fetchJson(path + "/history"), fetchJson(path + "/navigation")]);
+        const renderKey = JSON.stringify([view, history, navigation]);
         if (renderKey !== lastRenderKey) {
-          render(view, history);
+          render(view, history, navigation);
           lastRenderKey = renderKey;
         }
         if (announce) setMessage(view.status === "CLOSED"

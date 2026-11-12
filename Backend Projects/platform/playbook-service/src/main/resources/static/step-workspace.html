@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Investigation Hub · Step navigation</title>
+  <style>
+    * { box-sizing: border-box; } [hidden] { display: none !important; } body { margin: 0; font-family: system-ui, sans-serif; background: #f3f6f9; color: #183047; }
+    header { background: #092b40; color: white; padding: 25px max(22px, calc((100vw - 1080px)/2)); }
+    header small { color: #78ddd1; text-transform: uppercase; letter-spacing: .1em; } h1 { margin: 8px 0; }
+    main { max-width: 1124px; margin: auto; padding: 24px 22px; } a { color: #087f78; }
+    .layout { display: grid; grid-template-columns: 260px 1fr; gap: 18px; margin-top: 20px; }
+    .panel { background: white; border: 1px solid #dce6ec; border-radius: 12px; padding: 21px; }
+    h2 { margin-top: 0; font-size: 21px; } p, dd, li { line-height: 1.6; } dt { color: #617986; font-size: 12px; margin-top: 15px; } dd { margin: 3px 0; overflow-wrap: anywhere; }
+    .badge { color: #087f78; background: #eafaf6; padding: 6px 10px; border-radius: 20px; display: inline-block; }
+    .receipt { border-top: 1px solid #dce6ec; margin-top: 18px; padding-top: 16px; }
+    blockquote { margin: 12px 0; padding: 10px 14px; border-left: 3px solid #087f78; background: #f3faf8; white-space: pre-wrap; }
+    #message { margin-top: 15px; } .error { color: #a63232; } .hint { color: #617986; font-size: 13px; }
+    button { background: #087f78; color: white; border: 0; padding: 10px 14px; border-radius: 7px; cursor: pointer; margin: 6px 7px 6px 0; }
+    button:disabled { opacity: .45; cursor: default; } input { width: 100%; padding: 10px; margin: 6px 0 12px; border: 1px solid #b9cbd4; border-radius: 7px; }
+    label { display: block; font-size: 13px; font-weight: 650; } .agent-result { border: 1px solid #c7ddd8; border-radius: 9px; padding: 16px; margin-top: 12px; }
+    @media(max-width: 650px) { .layout { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header><small>Development view · Step navigation</small><h1 id="title">Investigation section</h1></header>
+  <main>
+    <a id="back" href="/playbook-monitor.html">← Back to playbook</a>
+    <p id="message" role="status">Resolving the selected step…</p>
+    <div id="content" class="layout" hidden>
+      <aside class="panel"><span id="requirement" class="badge"></span><dl id="context"></dl></aside>
+      <section class="panel"><h2 id="section"></h2>
+        <p id="notice">This section is ready for navigation. Investigation data and the full investigator workspace will be connected in a later milestone.</p>
+        <h3>Data needed for this step</h3><ul id="data"></ul>
+        <h3>Completion evidence defined by policy</h3><ul id="evidence"></ul>
+        <p class="hint">Opening this section does not complete the step.</p>
+        <div id="agent-panel" hidden>
+          <h3>Bank Document Review Agent</h3>
+          <p class="hint">The local model analyses supplied documents. Agent findings keep this task open until a human accepts them.</p>
+          <label for="reviewer">Development reviewer ID</label><input id="reviewer" placeholder="Enter your investigator ID">
+          <label for="review-reason">Review reason</label><input id="review-reason" placeholder="Required when accepting or returning findings">
+          <button id="start-agent">Run document review agent</button><p id="agent-status" role="status"></p>
+          <div id="agent-results"></div>
+        </div>
+        <h3>Saved findings and evidence</h3><div id="receipts">Loading saved findings…</div>
+      </section>
+    </div>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+    const caseId = params.get("caseId"), stepId = params.get("stepId");
+    let navigation = null, agentResultKey = "", currentRunId = null, agentBusy = false;
+    const label = value => String(value || "—").replaceAll("_", " ").replaceAll("-", " ");
+    function list(id, values) {
+      $(id).replaceChildren();
+      for (const value of values.length ? values : ["No items configured"]) {
+        const li = document.createElement("li"); li.textContent = value; $(id).append(li);
+      }
+    }
+    async function load() {
+      if (!caseId || !stepId) throw new Error("A case ID and selected step ID are required.");
+      $("back").href = "/playbook-monitor.html?caseId=" + encodeURIComponent(caseId);
+      const response = await fetch("/v1/playbooks/cases/" + encodeURIComponent(caseId)
+        + "/steps/" + encodeURIComponent(stepId) + "/navigation", { cache: "no-store" });
+      if (!response.ok) throw new Error("Navigation returned HTTP " + response.status);
+      const view = await response.json();
+      navigation = view;
+      $("title").textContent = view.name;
+      $("requirement").textContent = view.required ? "Required by policy" : "Optional by policy";
+      $("section").textContent = label(view.sectionId);
+      $("message").textContent = view.available ? "Opened the section selected by this case's policy." : view.unavailableReason;
+      if (!view.available) $("notice").textContent = view.unavailableReason;
+      $("context").replaceChildren();
+      for (const [key, value] of Object.entries({...view.context, policyVersion: view.policyVersion})) {
+        const dt = document.createElement("dt"), dd = document.createElement("dd");
+        dt.textContent = label(key); dd.textContent = value; $("context").append(dt, dd);
+      }
+      list("data", view.dataPoints); list("evidence", view.completionEvidence);
+      $("content").hidden = false;
+      if (view.agentType === "BANK_DOCUMENT_REVIEW") {
+        $("agent-panel").hidden = false;
+        await refreshAgent();
+        setInterval(() => refreshAgent().catch(error => { $("agent-status").textContent = error.message; }), 2500);
+      }
+      if (view.focusField) { $("section").id = view.focusField; location.hash = view.focusField; }
+      const auditResponse = await fetch("/v1/playbooks/cases/" + encodeURIComponent(caseId) + "/completions",
+        { cache: "no-store", headers: { "X-Tenant-Id": view.context.tenantId } });
+      if (!auditResponse.ok) { $("receipts").textContent = "Saved findings could not be loaded."; return; }
+      const receipts = (await auditResponse.json()).filter(item => item.stepId === stepId);
+      $("receipts").replaceChildren();
+      if (!receipts.length) $("receipts").textContent = "No submitted findings for this step.";
+      for (const receipt of receipts) {
+        const card = document.createElement("div"); card.className = "receipt";
+        const meta = document.createElement("p"); meta.className = "hint";
+        meta.textContent = "Completed by " + receipt.actorId + " · " + new Date(receipt.completedAt).toLocaleString()
+          + " · Case revision " + receipt.caseRevision + " · Policy version " + receipt.policyVersion;
+        const finding = document.createElement("p"); finding.textContent = receipt.findings; card.append(meta, finding);
+        for (const citation of receipt.citations) {
+          const source = document.createElement("p"); source.className = "hint";
+          source.textContent = citation.evidenceType + " · " + citation.sourceReference
+            + " · Lines " + citation.startLine + "–" + citation.endLine;
+          const quote = document.createElement("blockquote"); quote.textContent = citation.excerpt;
+          const digest = document.createElement("p"); digest.className = "hint";
+          digest.style.overflowWrap = "anywhere"; digest.textContent = "Source SHA-256: " + citation.documentSha256;
+          card.append(source, quote, digest);
+        }
+        $("receipts").append(card);
+      }
+    }
+
+    const stepApi = () => "/v1/playbooks/cases/" + encodeURIComponent(caseId) + "/steps/" + encodeURIComponent(stepId);
+    async function agentRequest(path, method = "GET", body = null) {
+      const headers = { "X-Tenant-Id": navigation.context.tenantId };
+      if (body) { headers["Content-Type"] = "application/json"; headers["X-Actor-Id"] = $("reviewer").value.trim(); }
+      const response = await fetch(path, { method, headers, cache: "no-store", body: body ? JSON.stringify(body) : undefined });
+      if (!response.ok) throw new Error("Agent request returned HTTP " + response.status + ". Refresh if the case changed; review the service API for details.");
+      return response.json();
+    }
+    async function revisions() {
+      const [nav, playbook] = await Promise.all([
+        fetch(stepApi() + "/navigation", { cache: "no-store" }).then(response => { if (!response.ok) throw new Error("Navigation unavailable"); return response.json(); }),
+        fetch("/v1/playbooks/cases/" + encodeURIComponent(caseId), { cache: "no-store" }).then(response => { if (!response.ok) throw new Error("Playbook unavailable"); return response.json(); })]);
+      return { expectedCaseRevision: nav.caseRevision, expectedPlaybookRevision: playbook.playbookRevision };
+    }
+    async function refreshAgent() {
+      if (agentBusy) return;
+      if (currentRunId) {
+        const run = await agentRequest(stepApi() + "/agent-runs/" + encodeURIComponent(currentRunId));
+        $("agent-status").textContent = "Agent run: " + run.status + (run.errorCode ? " · " + run.errorCode : "");
+        if (["FAILED", "AWAITING_REVIEW", "RETURNED", "ACCEPTED"].includes(run.status)) currentRunId = null;
+      }
+      const results = await agentRequest(stepApi() + "/agent-findings");
+      $("start-agent").disabled = Boolean(currentRunId) || results.some(item => ["AWAITING_REVIEW", "ACCEPTED"].includes(item.status));
+      const key = JSON.stringify(results);
+      if (key === agentResultKey) return;
+      agentResultKey = key;
+      $("agent-results").replaceChildren();
+      for (const result of results) {
+        const card = document.createElement("div"); card.className = "agent-result";
+        const heading = document.createElement("strong"); heading.textContent = result.status.replaceAll("_", " ");
+        const metadata = document.createElement("p"); metadata.className = "hint";
+        metadata.textContent = result.proposal.modelProvider + " · " + result.proposal.model + " · Run " + result.runId;
+        const findings = document.createElement("p"); findings.textContent = result.proposal.findings;
+        card.append(heading, metadata, findings);
+        for (const gap of result.proposal.gaps) { const p = document.createElement("p"); p.textContent = "Missing information: " + gap; card.append(p); }
+        for (const citation of result.verifiedCitations) {
+          const source = document.createElement("p"); source.className = "hint";
+          source.textContent = citation.sourceReference + " · Lines " + citation.startLine + "–" + citation.endLine;
+          const quote = document.createElement("blockquote"); quote.textContent = citation.excerpt; card.append(source, quote);
+        }
+        if (result.status === "AWAITING_REVIEW") {
+          for (const action of ["ACCEPT", "RETURN_FOR_REWORK"]) {
+            const button = document.createElement("button"); button.textContent = action === "ACCEPT" ? "Accept findings and complete step" : "Return for rework";
+            button.disabled = action === "ACCEPT" && (result.proposal.recommendation !== "READY_FOR_REVIEW" || result.proposal.gaps.length > 0);
+            button.addEventListener("click", async () => {
+              if (!$("reviewer").value.trim() || !$("review-reason").value.trim()) { $("agent-status").textContent = "Enter your reviewer ID and review reason."; return; }
+              button.disabled = true; agentBusy = true;
+              try {
+                await agentRequest(stepApi() + "/agent-review", "POST", { commandId: crypto.randomUUID(), runId: result.runId,
+                  action, reason: $("review-reason").value.trim(), ...await revisions() });
+                location.reload();
+              } catch (error) { $("agent-status").textContent = error.message; button.disabled = false; }
+              finally { agentBusy = false; }
+            });
+            card.append(button);
+          }
+        }
+        $("agent-results").append(card);
+      }
+    }
+    $("start-agent").addEventListener("click", async () => {
+      if (!$("reviewer").value.trim()) { $("agent-status").textContent = "Enter your development reviewer ID to start an agent run."; return; }
+      agentBusy = true; $("start-agent").disabled = true;
+      try {
+        const run = await agentRequest(stepApi() + "/agent-runs", "POST", { runId: crypto.randomUUID(), ...await revisions() });
+        currentRunId = run.runId; $("agent-status").textContent = "Agent run queued. Waiting for local model findings…";
+      } catch (error) { $("agent-status").textContent = error.message; $("start-agent").disabled = false; }
+      finally { agentBusy = false; }
+    });
+    load().catch(error => { $("message").textContent = error.message; $("message").className = "error"; });
+  </script>
+</body>
+</html>

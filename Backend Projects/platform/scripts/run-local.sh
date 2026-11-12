@@ -33,7 +33,9 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-for port in 18081 18082 18083 18084; do
+ports=(18081 18082 18083 18084)
+if [[ "${IH_START_AGENT_SERVICE:-false}" = true ]]; then ports+=("${IH_AGENT_PORT:-18085}"); fi
+for port in "${ports[@]}"; do
   if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
     echo "Port $port is already in use; stop the existing platform service first." >&2
     exit 1
@@ -52,13 +54,19 @@ PGPASSWORD="$IH_DB_PASSWORD" psql -v ON_ERROR_STOP=1 \
   -f scripts/create-local-schemas.sql >/dev/null
 
 for service in policy playbook case alert; do
-  IH_DB_PASSWORD="$IH_DB_PASSWORD" IH_DEMO_TASK_COMPLETION_ENABLED=true "$java_bin" \
+  IH_DB_PASSWORD="$IH_DB_PASSWORD" IH_DEMO_TASK_COMPLETION_ENABLED=true \
+    IH_DEMO_POLICY_ADMIN_ENABLED=true "$java_bin" \
     -jar "$platform_dir/$service-service/target/$service-service-0.1.0.jar" \
     > "$log_dir/$service.log" 2>&1 &
   pids+=("$!")
 done
 
-for port in 18081 18082 18083 18084; do
+if [[ "${IH_START_AGENT_SERVICE:-false}" = true ]]; then
+  bash "$platform_dir/scripts/run-agent-local.sh" > "$log_dir/agent.log" 2>&1 &
+  pids+=("$!")
+fi
+
+for port in "${ports[@]}"; do
   ready=false
   for attempt in $(seq 1 60); do
     if curl --max-time 2 -fsS "http://127.0.0.1:$port/actuator/health/readiness" 2>/dev/null \
@@ -74,18 +82,19 @@ for port in 18081 18082 18083 18084; do
   fi
 done
 
-echo "All four services are ready."
+echo "All configured platform services are ready."
 echo "Swagger: http://localhost:18081/swagger-ui.html (Policy)"
 echo "         http://localhost:18082/swagger-ui.html (Case)"
 echo "         http://localhost:18083/swagger-ui.html (Playbook)"
 echo "         http://localhost:18084/swagger-ui.html (Alert)"
+if [[ "${IH_START_AGENT_SERVICE:-false}" = true ]]; then echo "         http://localhost:${IH_AGENT_PORT:-18085}/docs (Agent)"; fi
 
 if [ "${1:-}" = "--smoke" ]; then
   python3 smoke.py
   exit
 fi
 
-echo "Run python3 smoke.py in another terminal. Press Ctrl+C here to stop all four services."
+echo "Run python3 smoke.py in another terminal. Press Ctrl+C here to stop the configured platform services."
 while true; do
   for pid in "${pids[@]}"; do
     if ! kill -0 "$pid" 2>/dev/null; then

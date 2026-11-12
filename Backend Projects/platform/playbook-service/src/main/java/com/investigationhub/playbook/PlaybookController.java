@@ -17,9 +17,24 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Playbooks")
 public class PlaybookController {
     private final PlaybookService playbooks;
+    private final StepNavigationService navigation;
 
-    public PlaybookController(PlaybookService playbooks) {
+    public PlaybookController(PlaybookService playbooks, StepNavigationService navigation) {
         this.playbooks = playbooks;
+        this.navigation = navigation;
+    }
+
+    @GetMapping("/{caseId}/navigation")
+    @Operation(summary = "Resolve navigation for selected steps using the pinned policy")
+    public List<StepNavigationService.Navigation> navigation(@PathVariable UUID caseId) {
+        return navigation.list(caseId);
+    }
+
+    @GetMapping("/{caseId}/steps/{stepId}/navigation")
+    @Operation(summary = "Resolve a selected step's section and case context")
+    public StepNavigationService.Navigation stepNavigation(@PathVariable UUID caseId,
+            @PathVariable String stepId) {
+        return navigation.get(caseId, stepId);
     }
 
     @PostMapping("/{caseId}/reconcile")

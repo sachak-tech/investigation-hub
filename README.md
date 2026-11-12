@@ -16,3 +16,5 @@ python3 scripts/validate_contracts.py
 ```
 
 Authentication and CI/CD are deferred for now. The contracts retain tenant, actor, idempotency, and revision fields for their later integration.
+
+The first [Bank Document Review Agent](<Backend Projects/platform/agent-service/README.md>) now runs as a Python/FastAPI service with local Ollama. It analyses supplied text and submits cited findings for a mandatory human review. External data retrieval remains deferred. The agent README covers model/dependency setup and the repeatable live-model scenario.

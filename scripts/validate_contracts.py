@@ -14,6 +14,8 @@ PAIRS = (
     ("domain-event", "domain-event"),
     ("step-destination", "step-destination"),
     ("external-section", "external-section"),
+    ("task-completion", "task-completion"),
+    ("agent-analysis", "agent-analysis"),
 )
 
 

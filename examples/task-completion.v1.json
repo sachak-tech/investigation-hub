@@ -1,0 +1,13 @@
+{
+  "commandId": "e5cde96f-759f-4d30-838d-f93bd19ed4bc",
+  "expectedCaseRevision": 1,
+  "expectedPlaybookRevision": 1,
+  "taskId": "replace-with-active-flowable-task-id",
+  "findings": "The supplied statement records salary as the source of funds; reviewer confirmation is required.",
+  "citations": [{
+    "evidenceType": "document_review",
+    "documentId": "99dd44c4-1a0b-4ead-99f2-7499c0e52e22",
+    "startLine": 2, "endLine": 2,
+    "excerpt": "Source of funds: salary from Example Employer."
+  }]
+}

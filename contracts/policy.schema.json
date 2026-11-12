@@ -42,6 +42,7 @@
         "required": ["id", "activation", "owner", "destinationId", "dataPoints", "required", "completionEvidence"],
         "properties": {
           "id": {"type": "string", "minLength": 1},
+          "name": {"type": "string", "minLength": 1},
           "activation": {
             "type": "object",
             "additionalProperties": false,
@@ -53,11 +54,35 @@
             }
           },
           "owner": {"enum": ["AGENT", "HUMAN", "AGENT_THEN_HUMAN"]},
+          "agent": {"type": "object", "additionalProperties": false,
+            "required": ["type", "requireHumanReview"],
+            "properties": {"type": {"const": "BANK_DOCUMENT_REVIEW"},
+              "requireHumanReview": {"const": true}, "instructions": {"type": "string", "minLength": 1}}},
           "destinationId": {"type": "string", "minLength": 1},
           "dataPoints": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
           "required": {"type": "boolean"},
           "completionEvidence": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
         }
+      }
+    },
+    "destinations": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["destinationId", "kind", "workspace", "sectionId", "contextMapping"],
+        "properties": {
+          "destinationId": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["BUILT_IN", "EXTERNAL_SECTION"]},
+          "workspace": {"const": "CASE_INVESTIGATION"},
+          "sectionId": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"},
+          "focusField": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"},
+          "contextMapping": {"type": "object", "required": ["caseId"],
+            "properties": {"caseId": {"const": "case.id"}},
+            "additionalProperties": {"enum": ["case.id", "case.primarySubjectId", "case.tenantId", "step.id"]}},
+          "externalSectionRef": {"type": "string", "minLength": 1}
+        },
+        "allOf": [{"if": {"properties": {"kind": {"const": "EXTERNAL_SECTION"}}},
+          "then": {"required": ["externalSectionRef"]}}]
       }
     },
     "reviewStages": {
@@ -70,7 +95,14 @@
         "properties": {
           "id": {"type": "string", "minLength": 1},
           "permittedActions": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-          "nextStages": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+          "nextStages": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+          "actionTargets": {
+            "type": "object", "additionalProperties": false,
+            "properties": {
+              "ESCALATE": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+              "RETURN_FOR_REWORK": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+            }
+          }
         }
       }
     },

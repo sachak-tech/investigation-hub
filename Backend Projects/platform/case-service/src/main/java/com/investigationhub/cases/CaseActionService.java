@@ -50,7 +50,9 @@ public class CaseActionService {
         for (JsonNode actionNode : config.path("permittedActions")) {
             String action = actionNode.asText();
             if ("ESCALATE".equals(action) || "RETURN_FOR_REWORK".equals(action)) {
-                for (JsonNode next : config.path("nextStages")) {
+                JsonNode targets = config.path("actionTargets");
+                JsonNode route = targets.isMissingNode() ? config.path("nextStages") : targets.path(action);
+                for (JsonNode next : route) {
                     result.add(new ActionOption(action, next.asText(), true, null));
                 }
             } else if ("APPROVE_CLOSE".equals(action)) {

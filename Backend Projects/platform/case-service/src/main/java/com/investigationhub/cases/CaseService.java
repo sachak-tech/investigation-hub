@@ -88,14 +88,15 @@ public class CaseService {
             finalEvaluation = initial;
             jdbc.sql("""
                     insert into investigation_case
-                      (case_id, tenant_id, subject_id, case_type, status, revision, policy_id, policy_version, required_steps, review_stage)
+                      (case_id, tenant_id, subject_id, case_type, status, revision, policy_id, policy_version, required_steps, optional_steps, review_stage)
                     values (:caseId, :tenantId, :subjectId, :caseType, 'OPEN', 1, :policyId, :policyVersion,
-                            cast(:requiredSteps as jsonb), :reviewStage)
+                            cast(:requiredSteps as jsonb), cast(:optionalSteps as jsonb), :reviewStage)
                     """)
                     .param("caseId", caseId).param("tenantId", command.tenantId())
                     .param("subjectId", command.subjectId()).param("caseType", initial.caseType())
                     .param("policyId", initial.policyId()).param("policyVersion", initial.policyVersion())
                     .param("requiredSteps", json.writeValueAsString(initial.requiredStepIds()))
+                    .param("optionalSteps", json.writeValueAsString(initial.optionalStepIds()))
                     .param("reviewStage", initial.initialReviewStage())
                     .update();
         } else {
@@ -108,11 +109,13 @@ public class CaseService {
             finalEvaluation = evaluate(command.tenantId(), alertTypes);
             jdbc.sql("""
                     update investigation_case set case_type = :caseType, revision = :revision,
-                      required_steps = cast(:requiredSteps as jsonb), updated_at = now()
+                      required_steps = cast(:requiredSteps as jsonb),
+                      optional_steps = cast(:optionalSteps as jsonb), updated_at = now()
                     where case_id = :caseId
                     """)
                     .param("caseType", finalEvaluation.caseType()).param("revision", revision)
                     .param("requiredSteps", json.writeValueAsString(finalEvaluation.requiredStepIds()))
+                    .param("optionalSteps", json.writeValueAsString(finalEvaluation.optionalStepIds()))
                     .param("caseId", caseId).update();
         }
 
@@ -145,7 +148,8 @@ public class CaseService {
     public CaseView get(UUID caseId) {
         CaseRowFull row = jdbc.sql("""
                 select case_id, tenant_id, subject_id, case_type, status, revision, policy_id, policy_version,
-                  required_steps::text as required_steps, review_stage, assigned_to, closed_at
+                  required_steps::text as required_steps, optional_steps::text as optional_steps,
+                  review_stage, assigned_to, closed_at
                 from investigation_case where case_id = :caseId
                 """)
                 .param("caseId", caseId)
@@ -153,6 +157,7 @@ public class CaseService {
                         rs.getString("tenant_id"), rs.getString("subject_id"), rs.getString("case_type"),
                         rs.getString("status"), rs.getLong("revision"), rs.getString("policy_id"),
                         rs.getInt("policy_version"), rs.getString("required_steps"),
+                        rs.getString("optional_steps"),
                         rs.getString("review_stage"), rs.getString("assigned_to"),
                         rs.getObject("closed_at", OffsetDateTime.class)))
                 .optional().orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Case not found"));
@@ -160,8 +165,10 @@ public class CaseService {
                 .param("caseId", caseId).query(String.class).list();
         List<String> requiredSteps = new ArrayList<>();
         for (JsonNode step : json.readTree(row.requiredSteps())) requiredSteps.add(step.asText());
+        List<String> optionalSteps = new ArrayList<>();
+        for (JsonNode step : json.readTree(row.optionalSteps())) optionalSteps.add(step.asText());
         return new CaseView(row.caseId(), row.tenantId(), row.subjectId(), row.caseType(), row.status(),
-                row.revision(), row.policyId(), row.policyVersion(), alertTypes, requiredSteps,
+                row.revision(), row.policyId(), row.policyVersion(), alertTypes, requiredSteps, optionalSteps,
                 row.reviewStage(), row.assignedTo(), row.closedAt());
     }
 
@@ -190,14 +197,16 @@ public class CaseService {
     private record CaseRow(UUID caseId, String caseType, long revision) {}
     private record CaseRowFull(UUID caseId, String tenantId, String subjectId, String caseType,
             String status, long revision, String policyId, int policyVersion, String requiredSteps,
-            String reviewStage, String assignedTo, OffsetDateTime closedAt) {}
+            String optionalSteps, String reviewStage, String assignedTo, OffsetDateTime closedAt) {}
     private record EvaluationRequest(String tenantId, List<String> alertTypes) {}
     private record PolicyEvaluation(String policyId, int policyVersion, String caseType,
-            int joinWindowDays, List<String> requiredStepIds, String initialReviewStage) {}
+            int joinWindowDays, List<String> requiredStepIds, List<String> optionalStepIds,
+            String initialReviewStage) {}
     private record PolicyGrouping(String policyId, int policyVersion, int joinWindowDays) {}
     public record IngestAlert(UUID alertId, String tenantId, String subjectId, boolean subjectVerified,
             String alertType, Instant detectedAt, String correlationId, UUID sourceEventId) {}
     public record CaseView(UUID caseId, String tenantId, String subjectId, String caseType,
             String status, long revision, String policyId, int policyVersion, List<String> alertTypes,
-            List<String> requiredStepIds, String reviewStage, String assignedTo, OffsetDateTime closedAt) {}
+            List<String> requiredStepIds, List<String> optionalStepIds,
+            String reviewStage, String assignedTo, OffsetDateTime closedAt) {}
 }
