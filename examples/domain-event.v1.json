@@ -1,0 +1,19 @@
+{
+  "eventId": "617776a2-7ec0-4418-b120-b758ffef82c2",
+  "eventType": "CaseClassificationChanged",
+  "schemaVersion": 1,
+  "tenantId": "demo-bank",
+  "aggregateId": "case-1",
+  "aggregateRevision": 2,
+  "occurredAt": "2026-11-12T00:00:01Z",
+  "correlationId": "corr-synthetic-case-1",
+  "actorId": "case-service",
+  "policyId": "synthetic-aml-policy",
+  "policyVersion": 1,
+  "payload": {
+    "caseId": "case-1",
+    "fromType": "TRANSACTION_REVIEW",
+    "toType": "TRANSACTION_AND_KYC_REVIEW",
+    "triggerAlertId": "alert-kyc-1"
+  }
+}

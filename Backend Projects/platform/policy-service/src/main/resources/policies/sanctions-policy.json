@@ -1,0 +1,25 @@
+{
+  "policyId": "synthetic-sanctions-policy",
+  "version": 1,
+  "tenantId": "demo-sanctions-bank",
+  "effectiveFrom": "2026-11-12T00:00:00Z",
+  "caseGrouping": {"sameVerifiedSubject": true, "joinWindowDays": 14, "closedCaseBehavior": "CREATE_LINKED_CASE"},
+  "caseTypes": [
+    {"id": "SANCTIONS_REVIEW", "requiredAlertTypes": ["SANCTIONS_POSSIBLE_MATCH"], "priority": 10},
+    {"id": "PEP_REVIEW", "requiredAlertTypes": ["PEP_ADVERSE_MEDIA"], "priority": 10},
+    {"id": "SANCTIONS_AND_PEP_REVIEW", "requiredAlertTypes": ["SANCTIONS_POSSIBLE_MATCH", "PEP_ADVERSE_MEDIA"], "priority": 20}
+  ],
+  "steps": [
+    {"id": "sanctions_match_review", "activation": {"allAlertTypes": ["SANCTIONS_POSSIBLE_MATCH"], "caseTypes": []}, "owner": "HUMAN", "destinationId": "screening_matches", "dataPoints": ["screening.matchCandidates", "customer.identifiers"], "required": true, "completionEvidence": ["match_disposition"]},
+    {"id": "agent_sanctions_enrichment", "activation": {"allAlertTypes": ["SANCTIONS_POSSIBLE_MATCH"], "caseTypes": []}, "owner": "AGENT", "destinationId": "agent_findings", "dataPoints": ["screening.matchCandidates", "customer.identifiers"], "required": true, "completionEvidence": ["match_enrichment"]},
+    {"id": "pep_adverse_media_review", "activation": {"allAlertTypes": ["PEP_ADVERSE_MEDIA"], "caseTypes": []}, "owner": "HUMAN", "destinationId": "pep_adverse_media", "dataPoints": ["screening.pepHits", "screening.mediaHits"], "required": true, "completionEvidence": ["pep_media_assessment"]},
+    {"id": "cross_risk_assessment", "activation": {"allAlertTypes": ["SANCTIONS_POSSIBLE_MATCH", "PEP_ADVERSE_MEDIA"], "caseTypes": ["SANCTIONS_AND_PEP_REVIEW"]}, "owner": "AGENT_THEN_HUMAN", "destinationId": "cross_risk", "dataPoints": ["screening.matchCandidates", "screening.pepHits", "screening.mediaHits"], "required": true, "completionEvidence": ["cross_risk_assessment"]}
+  ],
+  "reviewStages": [
+    {"id": "SCREENING_ANALYST", "permittedActions": ["COMPLETE_STEP", "ESCALATE"], "nextStages": ["SANCTIONS_SPECIALIST", "COMPLIANCE_OFFICER"]},
+    {"id": "SANCTIONS_SPECIALIST", "permittedActions": ["COMPLETE_STEP", "ESCALATE", "RETURN_FOR_REWORK"], "nextStages": ["COMPLIANCE_OFFICER", "SCREENING_ANALYST"]},
+    {"id": "COMPLIANCE_OFFICER", "permittedActions": ["APPROVE_CLOSE", "RETURN_FOR_REWORK"], "nextStages": ["SCREENING_ANALYST", "SANCTIONS_SPECIALIST"]}
+  ],
+  "agentAuthority": {"permittedActions": ["COMPLETE_STEP", "RECOMMEND_CLOSE", "ESCALATE"], "allowedCaseTypes": ["SANCTIONS_REVIEW", "PEP_REVIEW", "SANCTIONS_AND_PEP_REVIEW"]},
+  "closureRules": {"autonomousCaseTypes": [], "requireIndependentCheck": true, "humanApprovalStage": "COMPLIANCE_OFFICER"}
+}

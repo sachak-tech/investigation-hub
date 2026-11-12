@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/CMMN/20151109/MODEL"
+             xmlns:flowable="http://flowable.org/cmmn"
+             targetNamespace="http://investigationhub.example/cases">
+  <case id="investigation" name="Synthetic AML investigation">
+    <casePlanModel id="investigationPlan" name="Investigation">
+      <planItem id="transactionReviewItem" name="Review transactions" definitionRef="transactionReviewTask" />
+      <planItem id="agentAnalysisItem" name="Agent transaction analysis" definitionRef="agentAnalysisTask" />
+      <planItem id="kycReviewItem" name="Review source of funds" definitionRef="kycReviewTask">
+        <entryCriterion id="kycEntry" sentryRef="kycAlertSentry" />
+      </planItem>
+      <sentry id="kycAlertSentry">
+        <ifPart><condition><![CDATA[${kycAlert == true}]]></condition></ifPart>
+      </sentry>
+      <humanTask id="transactionReviewTask" name="Review transactions" flowable:candidateGroups="L1" />
+      <task id="agentAnalysisTask" name="Agent transaction analysis" flowable:type="external-worker" flowable:topic="transaction-analysis" />
+      <humanTask id="kycReviewTask" name="Review source of funds" flowable:candidateGroups="L1" />
+    </casePlanModel>
+  </case>
+</definitions>
+

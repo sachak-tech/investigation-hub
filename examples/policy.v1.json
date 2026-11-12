@@ -1,0 +1,38 @@
+{
+  "policyId": "synthetic-aml-policy",
+  "version": 1,
+  "tenantId": "demo-bank",
+  "effectiveFrom": "2026-11-12T00:00:00Z",
+  "caseGrouping": {
+    "sameVerifiedSubject": true,
+    "joinWindowDays": 30,
+    "closedCaseBehavior": "CREATE_LINKED_CASE"
+  },
+  "caseTypes": [
+    {"id": "TRANSACTION_REVIEW", "requiredAlertTypes": ["TXN_ANOMALY"], "priority": 10},
+    {"id": "TRANSACTION_AND_KYC_REVIEW", "requiredAlertTypes": ["TXN_ANOMALY", "KYC_SOURCE_OF_FUNDS"], "priority": 20}
+  ],
+  "steps": [
+    {"id": "transaction_review", "activation": {"allAlertTypes": ["TXN_ANOMALY"], "anyAlertTypes": [], "caseTypes": []}, "owner": "HUMAN", "destinationId": "transaction_timeline", "dataPoints": ["transactions", "alert.rationale"], "required": true, "completionEvidence": ["transaction_finding"]},
+    {"id": "agent_transaction_analysis", "activation": {"allAlertTypes": ["TXN_ANOMALY"], "anyAlertTypes": [], "caseTypes": []}, "owner": "AGENT", "destinationId": "agent_findings", "dataPoints": ["transactions", "customer.profile"], "required": true, "completionEvidence": ["agent_finding"]},
+    {"id": "source_of_funds_review", "activation": {"allAlertTypes": ["KYC_SOURCE_OF_FUNDS"], "anyAlertTypes": [], "caseTypes": []}, "owner": "HUMAN", "destinationId": "bank_source_of_funds", "dataPoints": ["customer.declaredSourceOfFunds", "bankApi.sourceOfFunds"], "required": true, "completionEvidence": ["source_of_funds_assessment"]},
+    {"id": "combined_risk_review", "activation": {"allAlertTypes": ["TXN_ANOMALY", "KYC_SOURCE_OF_FUNDS"], "anyAlertTypes": [], "caseTypes": ["TRANSACTION_AND_KYC_REVIEW"]}, "owner": "AGENT_THEN_HUMAN", "destinationId": "combined_risk", "dataPoints": ["transactions", "customer.profile", "bankApi.sourceOfFunds"], "required": true, "completionEvidence": ["combined_risk_assessment"]}
+  ],
+  "reviewStages": [
+    {"id": "L1", "permittedActions": ["COMPLETE_STEP", "ESCALATE"], "nextStages": ["L2", "L3", "L4", "L5"]},
+    {"id": "L2", "permittedActions": ["COMPLETE_STEP", "ESCALATE"], "nextStages": ["L3", "L4", "L5"]},
+    {"id": "L3", "permittedActions": ["COMPLETE_STEP", "ESCALATE"], "nextStages": ["L4", "L5"]},
+    {"id": "L4", "permittedActions": ["COMPLETE_STEP", "ESCALATE"], "nextStages": ["L5"]},
+    {"id": "L5", "permittedActions": ["APPROVE_CLOSE", "RETURN_FOR_REWORK"], "nextStages": ["L1", "L2", "L3", "L4"]}
+  ],
+  "agentAuthority": {
+    "permittedActions": ["COMPLETE_STEP", "RECOMMEND_CLOSE", "ESCALATE"],
+    "allowedCaseTypes": ["TRANSACTION_REVIEW", "TRANSACTION_AND_KYC_REVIEW"]
+  },
+  "closureRules": {
+    "autonomousCaseTypes": [],
+    "requireIndependentCheck": true,
+    "humanApprovalStage": "L5"
+  }
+}
+

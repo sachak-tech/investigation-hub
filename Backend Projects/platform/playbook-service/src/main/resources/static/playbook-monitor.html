@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Investigation Hub · Playbook monitor</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #183047; background: #f3f6f9; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { padding: 27px max(22px, calc((100vw - 1120px) / 2)); background: #092b40; color: white; }
+    header small { color: #78ddd1; font-size: 11px; letter-spacing: .14em; font-weight: 800; text-transform: uppercase; }
+    h1 { margin: 6px 0 5px; font-size: clamp(25px, 3vw, 35px); }
+    header p { margin: 0; color: #bcd2dd; font-size: 14px; }
+    main { max-width: 1164px; padding: 25px 22px 60px; margin: auto; }
+    .panel { background: white; border: 1px solid #dce6ec; border-radius: 13px; box-shadow: 0 8px 24px #16354a0a; padding: 19px; }
+    .selector { display: flex; gap: 10px; align-items: end; }
+    .field { flex: 1; }
+    label { display: block; color: #506a78; font-size: 12px; font-weight: 750; margin-bottom: 7px; }
+    input { width: 100%; height: 42px; border: 1px solid #b9cbd4; border-radius: 8px; padding: 0 11px; font: inherit; }
+    button { height: 42px; padding: 0 16px; color: white; background: #087f78; border: 0; border-radius: 8px; font: inherit; font-weight: 700; cursor: pointer; }
+    button:hover { background: #006b65; }
+    #message { min-height: 25px; margin: 13px 1px; color: #55707d; font-size: 13px; }
+    #message.error { color: #a63232; }
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 16px; }
+    .metric small { display: block; color: #69818e; font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+    .metric strong { display: block; margin-top: 7px; font-size: 17px; overflow-wrap: anywhere; }
+    h2 { margin: 0 0 5px; font-size: 17px; }
+    .hint { margin: 0 0 20px; color: #667f8c; line-height: 1.5; font-size: 13px; }
+    .group { position: relative; margin-left: 7px; padding: 0 0 22px 22px; border-left: 2px solid #b8d7d4; }
+    .group:last-child { padding-bottom: 0; }
+    .group::before { content: ""; position: absolute; top: 2px; left: -7px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; background: #0b887e; box-shadow: 0 0 0 1px #b8d7d4; }
+    h3 { margin: 0 0 11px; color: #506b79; font-size: 12px; letter-spacing: .07em; text-transform: uppercase; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(225px, 1fr)); gap: 10px; }
+    .step { min-height: 112px; border: 1px solid #d7e3e9; border-radius: 10px; padding: 13px; background: #fcfefe; }
+    .step.active { border: 2px solid #087f78; background: #eafaf6; box-shadow: 0 0 0 3px #c4eee5; }
+    .step.completed { border-color: #89bc97; background: #f1faf3; }
+    .step.available, .step.enabled { border-style: dashed; }
+    .name { font-size: 14px; font-weight: 750; margin-bottom: 8px; }
+    .badge { display: inline-block; padding: 4px 9px; border-radius: 100px; background: #e9f0f3; color: #496878; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .badge + .badge { margin-left: 6px; }
+    .badge.requirement { background: #dfeefa; color: #1d5b86; }
+    .badge.not-required { background: #eef1f3; color: #60727e; }
+    .active .badge { background: #bfece1; color: #006b60; }
+    .completed .badge { background: #d7f0dc; color: #236b37; }
+    .detail { margin-top: 9px; color: #617986; font-size: 12px; overflow-wrap: anywhere; }
+    .waiting { margin-top: 9px; color: #8b6216; font-size: 12px; font-weight: 650; }
+    .other-items { margin-top: 20px; border-top: 1px solid #dce6ec; padding-top: 14px; }
+    .other-items summary { color: #506b79; font-size: 13px; font-weight: 750; cursor: pointer; }
+    .other-items p { color: #667f8c; font-size: 12px; line-height: 1.5; }
+    @media (max-width: 650px) { .metrics { grid-template-columns: 1fr; } .selector { flex-wrap: wrap; } .field { flex-basis: 100%; } }
+  </style>
+</head>
+<body>
+  <header>
+    <small>Milestone 1 · Development view</small>
+    <h1>Live playbook state</h1>
+    <p>See all active investigation steps for a product case.</p>
+  </header>
+  <main>
+    <section class="panel selector">
+      <div class="field"><label for="caseId">Product case ID</label><input id="caseId" placeholder="Paste the caseId returned by the Case API"></div>
+      <button id="open">Open case</button>
+    </section>
+    <div id="message" role="status" aria-live="polite">Enter a case ID to view its playbook.</div>
+    <section class="metrics">
+      <div class="panel metric"><small>Case type</small><strong id="caseType">—</strong></div>
+      <div class="panel metric"><small>Case / playbook revision</small><strong id="revisions">—</strong></div>
+      <div class="panel metric"><small>Active / completed steps</small><strong id="counts">—</strong></div>
+    </section>
+    <section class="panel">
+      <h2>Case step diagram</h2>
+      <p class="hint">Required by policy means this step must be completed for this case. Other model steps are not selected for the current case; they are not optional investigation tasks. This view refreshes every three seconds.</p>
+      <div id="groups"></div>
+    </section>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    const definitions = {
+      transaction_review: { name: "Review transactions", definitionId: "transactionReviewTask", group: "Transaction alert" },
+      agent_transaction_analysis: { name: "Agent transaction analysis", definitionId: "agentAnalysisTask", group: "Transaction alert" },
+      source_of_funds_review: { name: "Review source of funds", definitionId: "kycReviewTask", group: "KYC alert" },
+      combined_risk_review: { name: "Review combined risk", definitionId: "combinedReviewTask", group: "Combined assessment" },
+      sanctions_match_review: { name: "Review sanctions match", definitionId: "sanctionsReviewTask", group: "Sanctions alert" },
+      agent_sanctions_enrichment: { name: "Agent sanctions enrichment", definitionId: "sanctionsEnrichmentTask", group: "Sanctions alert" },
+      pep_adverse_media_review: { name: "Review PEP and adverse media", definitionId: "pepReviewTask", group: "PEP alert" },
+      cross_risk_assessment: { name: "Review cross-signal risk", definitionId: "crossRiskTask", group: "Combined assessment" }
+    };
+    let selectedCase = new URLSearchParams(location.search).get("caseId") || "";
+    let loading = false;
+    let lastRenderKey = "";
+
+    async function fetchJson(path) {
+      const response = await fetch(path, { cache: "no-store" });
+      if (!response.ok) throw new Error(path + " returned HTTP " + response.status);
+      return response.json();
+    }
+
+    function setMessage(value, error = false) {
+      $("message").textContent = value;
+      $("message").classList.toggle("error", error);
+    }
+
+    function stepCard(name, item, waitingFor = [], required = false) {
+      const card = document.createElement("div");
+      const state = item?.state || "not started";
+      card.className = "step " + state.toLowerCase();
+      const title = document.createElement("div");
+      title.className = "name";
+      title.textContent = name;
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = state;
+      card.append(title, badge);
+      const requirement = document.createElement("span");
+      requirement.className = "badge " + (required ? "requirement" : "not-required");
+      requirement.textContent = required ? "Required by policy" : "Not required for this case";
+      card.append(requirement);
+      if (state === "available" && waitingFor.length) {
+        const waiting = document.createElement("div");
+        waiting.className = "waiting";
+        waiting.textContent = "Waiting for: " + waitingFor.join(", ");
+        card.append(waiting);
+      }
+      if (item) {
+        const detail = document.createElement("div");
+        detail.className = "detail";
+        detail.textContent = "Flowable step " + item.id;
+        card.append(detail);
+      }
+      return card;
+    }
+
+    function render(view, history) {
+      const byDefinition = new Map(history.map(item => [item.definitionId, item]));
+      for (const item of view.steps) byDefinition.set(item.definitionId, item);
+      const dependencies = {
+        combined_risk_review: ["transactionReviewTask", "kycReviewTask"],
+        cross_risk_assessment: view.caseType === "SANCTIONS_AND_PEP_REVIEW"
+          ? ["sanctionsReviewTask", "pepReviewTask"]
+          : ["combinedReviewTask", "pepReviewTask"]
+      };
+      const waitingFor = stepId => (dependencies[stepId] || [])
+        .filter(id => byDefinition.get(id)?.state !== "completed")
+        .map(id => byDefinition.get(id)?.name || id);
+      const groups = new Map();
+      const shown = new Set();
+      for (const stepId of view.requiredStepIds) {
+        const spec = definitions[stepId] || { name: stepId.replaceAll("_", " "), definitionId: stepId, group: "Additional policy steps" };
+        if (!groups.has(spec.group)) groups.set(spec.group, []);
+        groups.get(spec.group).push([spec.name, byDefinition.get(spec.definitionId), waitingFor(stepId)]);
+        shown.add(spec.definitionId);
+      }
+      const otherItems = [];
+      for (const item of [...view.steps, ...history]) {
+        if (shown.has(item.definitionId)) continue;
+        if (item.state === "available" || item.state === "enabled") continue;
+        otherItems.push(item);
+        shown.add(item.definitionId);
+      }
+      const container = $("groups");
+      const otherWasOpen = Boolean(container.querySelector(".other-items[open]"));
+      container.replaceChildren();
+      for (const [name, steps] of groups) {
+        const group = document.createElement("div");
+        group.className = "group";
+        const heading = document.createElement("h3");
+        heading.textContent = name;
+        const cards = document.createElement("div");
+        cards.className = "cards";
+        for (const [stepName, item, pending] of steps) cards.append(stepCard(stepName, item, pending, true));
+        group.append(heading, cards);
+        container.append(group);
+      }
+      if (otherItems.length) {
+        const details = document.createElement("details");
+        details.className = "other-items";
+        details.open = otherWasOpen;
+        const summary = document.createElement("summary");
+        summary.textContent = "Other steps not required for this case";
+        const explanation = document.createElement("p");
+        explanation.textContent = "Flowable may mark these items terminated when the case closes. Terminated does not mean completed. If the required steps changed during the case, earlier work may also appear here.";
+        const cards = document.createElement("div");
+        cards.className = "cards";
+        for (const item of otherItems) cards.append(stepCard(item.name, item));
+        details.append(summary, explanation, cards);
+        container.append(details);
+      }
+      $("caseType").textContent = view.caseType.replaceAll("_", " ");
+      $("revisions").textContent = view.caseRevision + " / " + view.playbookRevision;
+      const current = [...byDefinition.values()];
+      $("counts").textContent = current.filter(item => item.state === "active").length + " / " + current.filter(item => item.state === "completed").length;
+    }
+
+    async function refresh(announce = false) {
+      if (!selectedCase || loading) return;
+      loading = true;
+      try {
+        const path = "/v1/playbooks/cases/" + encodeURIComponent(selectedCase);
+        const [view, history] = await Promise.all([fetchJson(path), fetchJson(path + "/history")]);
+        const renderKey = JSON.stringify([view, history]);
+        if (renderKey !== lastRenderKey) {
+          render(view, history);
+          lastRenderKey = renderKey;
+        }
+        if (announce) setMessage(view.status === "CLOSED"
+          ? "Case closed. Completed policy steps remain visible; other model items are collapsed below."
+          : "Case loaded. Live refresh is on.");
+      } catch (error) {
+        setMessage(error.message, true);
+      } finally {
+        loading = false;
+      }
+    }
+
+    $("open").addEventListener("click", () => {
+      selectedCase = $("caseId").value.trim();
+      lastRenderKey = "";
+      history.replaceState(null, "", selectedCase ? "?caseId=" + encodeURIComponent(selectedCase) : location.pathname);
+      refresh(true);
+    });
+    $("caseId").addEventListener("keydown", event => { if (event.key === "Enter") $("open").click(); });
+    $("caseId").value = selectedCase;
+    if (selectedCase) refresh(true);
+    setInterval(() => refresh(), 3000);
+  </script>
+</body>
+</html>

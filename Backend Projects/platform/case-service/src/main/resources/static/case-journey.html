@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Investigation Hub · Case journey</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #183047; background: #f3f6f9; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { padding: 27px max(22px, calc((100vw - 1120px) / 2)); background: #092b40; color: white; }
+    header small { color: #78ddd1; font-size: 11px; letter-spacing: .14em; font-weight: 800; text-transform: uppercase; }
+    h1 { margin: 6px 0 5px; font-size: clamp(25px, 3vw, 35px); }
+    header p { margin: 0; color: #bcd2dd; font-size: 14px; }
+    main { max-width: 1164px; padding: 25px 22px 60px; margin: auto; }
+    .panel { background: white; border: 1px solid #dce6ec; border-radius: 13px; box-shadow: 0 8px 24px #16354a0a; padding: 19px; }
+    .selector { display: flex; gap: 10px; align-items: end; }
+    .field { flex: 1; }
+    label { display: block; color: #506a78; font-size: 12px; font-weight: 750; margin-bottom: 7px; }
+    input { width: 100%; height: 42px; border: 1px solid #b9cbd4; border-radius: 8px; padding: 0 11px; font: inherit; }
+    button { height: 42px; padding: 0 16px; color: white; background: #087f78; border: 0; border-radius: 8px; font: inherit; font-weight: 700; cursor: pointer; }
+    button:hover { background: #006b65; }
+    #message { min-height: 25px; margin: 13px 1px; color: #55707d; font-size: 13px; }
+    #message.error { color: #a63232; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 0 0 16px; }
+    .metric small { display: block; color: #69818e; font-size: 11px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+    .metric strong { display: block; margin-top: 7px; font-size: 17px; overflow-wrap: anywhere; }
+    .sections { display: grid; gap: 16px; }
+    h2 { margin: 0 0 5px; font-size: 17px; }
+    .hint { margin: 0 0 16px; color: #667f8c; line-height: 1.5; font-size: 13px; }
+    .stage-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 10px; }
+    .stage { border: 1px solid #d7e3e9; border-radius: 10px; padding: 13px; background: #fcfefe; }
+    .stage.current { border: 2px solid #087f78; background: #eafaf6; box-shadow: 0 0 0 3px #c4eee5; }
+    .stage-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 750; overflow-wrap: anywhere; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 100px; background: #bfece1; color: #006b60; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+    .stage-detail { margin-top: 9px; color: #617986; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+    .timeline { margin: 4px 0 0 7px; padding: 0; list-style: none; border-left: 2px solid #b8d7d4; }
+    .event { position: relative; padding: 0 0 21px 23px; }
+    .event:last-child { padding-bottom: 0; }
+    .event::before { content: ""; position: absolute; top: 3px; left: -7px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; background: #0b887e; box-shadow: 0 0 0 1px #b8d7d4; }
+    .event.classification::before { background: #cc841c; }
+    .event.closed::before { background: #236b37; }
+    .event-title { font-weight: 750; font-size: 14px; }
+    .event-detail { margin-top: 5px; color: #607986; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+    .links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 15px; font-size: 13px; }
+    a { color: #087f78; font-weight: 700; }
+    @media (max-width: 750px) { .metrics { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .selector { flex-wrap: wrap; } .field { flex-basis: 100%; } .metrics { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <small>Milestone 1 · Development view</small>
+    <h1>Case journey</h1>
+    <p>Review stages, case decisions, alert arrivals, and classification changes for one case.</p>
+  </header>
+  <main>
+    <section class="panel selector">
+      <div class="field"><label for="caseId">Product case ID</label><input id="caseId" placeholder="Paste the caseId returned by the Case API"></div>
+      <button id="open">Open case</button>
+    </section>
+    <div id="message" role="status" aria-live="polite">Enter a case ID to view its journey.</div>
+    <section class="metrics">
+      <div class="panel metric"><small>Case type</small><strong id="caseType">—</strong></div>
+      <div class="panel metric"><small>Current review stage</small><strong id="stage">—</strong></div>
+      <div class="panel metric"><small>Status / assignee</small><strong id="status">—</strong></div>
+      <div class="panel metric"><small>Case / policy version</small><strong id="revision">—</strong></div>
+    </section>
+    <div class="sections">
+      <section class="panel">
+        <h2>Policy review stages</h2>
+        <p class="hint">The highlighted stage is current. Routes and actions are from the case's pinned policy; closure may have additional readiness checks.</p>
+        <div id="stages" class="stage-map"></div>
+        <div class="links"><a id="playbook" href="#">Open this case's live playbook</a><a id="api" href="#">Open journey JSON</a></div>
+      </section>
+      <section class="panel">
+        <h2>Actual case journey</h2>
+        <p class="hint">Events are stored with the case revision and shown in order. This view refreshes every three seconds.</p>
+        <ol id="events" class="timeline"></ol>
+      </section>
+    </div>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    let selectedCase = new URLSearchParams(location.search).get("caseId") || "";
+    let loading = false;
+
+    function label(value) { return String(value || "—").replaceAll("_", " "); }
+    function setMessage(value, error = false) {
+      $("message").textContent = value;
+      $("message").classList.toggle("error", error);
+    }
+    function detail(parent, value) {
+      const item = document.createElement("div");
+      item.className = "stage-detail";
+      item.textContent = value;
+      parent.append(item);
+    }
+    function titleFor(event) {
+      switch (event.type) {
+        case "CASE_CREATED": return "Case created from " + label(event.alertType);
+        case "ALERT_LINKED": return label(event.alertType) + " alert added";
+        case "CASE_CLASSIFICATION_CHANGED": return "Case type changed";
+        case "ESCALATE": return "Escalated " + label(event.fromStage) + " → " + label(event.toStage);
+        case "RETURN_FOR_REWORK": return "Returned " + label(event.fromStage) + " → " + label(event.toStage);
+        case "APPROVE_CLOSE": return "Case closed at " + label(event.fromStage);
+        default: return label(event.type);
+      }
+    }
+    function render(view) {
+      $("caseType").textContent = label(view.caseType);
+      $("stage").textContent = label(view.currentStage);
+      $("status").textContent = view.status + (view.assignedTo ? " · " + view.assignedTo : " · Unassigned");
+      $("revision").textContent = view.caseRevision + " / " + view.policyVersion;
+      $("stages").replaceChildren();
+      for (const stage of view.stages) {
+        const card = document.createElement("div");
+        card.className = "stage" + (stage.id === view.currentStage ? " current" : "");
+        const heading = document.createElement("div");
+        heading.className = "stage-title";
+        const name = document.createElement("span");
+        name.textContent = label(stage.id);
+        heading.append(name);
+        if (stage.id === view.currentStage) {
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = "Current";
+          heading.append(badge);
+        }
+        card.append(heading);
+        const caseActions = stage.permittedActions.filter(action =>
+          ["ESCALATE", "RETURN_FOR_REWORK", "APPROVE_CLOSE"].includes(action));
+        detail(card, "Case actions: " + (caseActions.map(label).join(", ") || "None"));
+        detail(card, "Possible next stages: " + (stage.nextStages.map(label).join(", ") || "None"));
+        $("stages").append(card);
+      }
+      $("events").replaceChildren();
+      for (const event of view.events) {
+        const row = document.createElement("li");
+        row.className = "event" + (event.type === "CASE_CLASSIFICATION_CHANGED" ? " classification" : "")
+          + (event.type === "APPROVE_CLOSE" ? " closed" : "");
+        const title = document.createElement("div");
+        title.className = "event-title";
+        title.textContent = titleFor(event);
+        const metadata = document.createElement("div");
+        metadata.className = "event-detail";
+        const parts = [new Date(event.occurredAt).toLocaleString(), "Revision " + event.caseRevision];
+        if (event.fromCaseType && event.toCaseType) parts.push(label(event.fromCaseType) + " → " + label(event.toCaseType));
+        if (event.actorId && event.type !== "CASE_CREATED" && event.type !== "ALERT_LINKED" && event.type !== "CASE_CLASSIFICATION_CHANGED") parts.push("Actor " + event.actorId);
+        if (event.assignedTo) parts.push("Assigned to " + event.assignedTo);
+        if (event.reason) parts.push(event.reason);
+        if (event.alertId) parts.push("Alert " + event.alertId);
+        metadata.textContent = parts.join(" · ");
+        row.append(title, metadata);
+        $("events").append(row);
+      }
+      $("playbook").href = "http://localhost:18083/playbook-monitor.html?caseId=" + encodeURIComponent(view.caseId);
+      $("api").href = "/v1/cases/" + encodeURIComponent(view.caseId) + "/journey";
+    }
+    async function refresh(announce = false) {
+      if (!selectedCase || loading) return;
+      loading = true;
+      try {
+        const response = await fetch("/v1/cases/" + encodeURIComponent(selectedCase) + "/journey", { cache: "no-store" });
+        if (!response.ok) throw new Error("Journey request returned HTTP " + response.status);
+        render(await response.json());
+        if (announce) setMessage("Case loaded. Live refresh is on.");
+      } catch (error) {
+        setMessage(error.message, true);
+      } finally {
+        loading = false;
+      }
+    }
+    $("open").addEventListener("click", () => {
+      selectedCase = $("caseId").value.trim();
+      history.replaceState(null, "", selectedCase ? "?caseId=" + encodeURIComponent(selectedCase) : location.pathname);
+      refresh(true);
+    });
+    $("caseId").addEventListener("keydown", event => { if (event.key === "Enter") $("open").click(); });
+    $("caseId").value = selectedCase;
+    if (selectedCase) refresh(true);
+    setInterval(() => refresh(), 3000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://investigation-hub.example/contracts/external-section/v1",
+  "title": "Bank configured external investigation section",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sectionId", "version", "tenantId", "connector", "requestMapping", "responseSchema", "presentation", "evidenceFields", "allowedRoles"],
+  "properties": {
+    "sectionId": {"type": "string", "minLength": 1},
+    "version": {"type": "integer", "minimum": 1},
+    "tenantId": {"type": "string", "minLength": 1},
+    "connector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpointRef", "method", "credentialRef", "timeoutMs"],
+      "properties": {
+        "endpointRef": {"type": "string", "minLength": 1},
+        "method": {"enum": ["GET", "POST"]},
+        "credentialRef": {"type": "string", "minLength": 1},
+        "timeoutMs": {"type": "integer", "minimum": 100, "maximum": 30000}
+      }
+    },
+    "requestMapping": {"type": "object", "additionalProperties": {"type": "string"}},
+    "responseSchema": {"type": "object"},
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "columns"],
+      "properties": {
+        "kind": {"enum": ["TABLE", "CARDS"]},
+        "columns": {"type": "array", "items": {"type": "object", "required": ["field", "label"], "properties": {"field": {"type": "string"}, "label": {"type": "string"}}, "additionalProperties": false}}
+      }
+    },
+    "evidenceFields": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "allowedRoles": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+  }
+}
+

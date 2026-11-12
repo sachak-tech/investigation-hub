@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://investigation-hub.example/contracts/command/v1",
+  "title": "Investigation command envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["commandId", "commandType", "schemaVersion", "tenantId", "actorId", "correlationId", "idempotencyKey", "payload"],
+  "properties": {
+    "commandId": {"type": "string", "format": "uuid"},
+    "commandType": {"enum": ["AcceptAlert", "AttachAlert", "CompleteStep", "RequestClosure"]},
+    "schemaVersion": {"const": 1},
+    "tenantId": {"type": "string", "minLength": 1},
+    "actorId": {"type": "string", "minLength": 1},
+    "correlationId": {"type": "string", "minLength": 1},
+    "idempotencyKey": {"type": "string", "minLength": 1},
+    "expectedCaseRevision": {"type": "integer", "minimum": 1},
+    "policyId": {"type": "string", "minLength": 1},
+    "policyVersion": {"type": "integer", "minimum": 1},
+    "payload": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"commandType": {"const": "AcceptAlert"}}},
+      "then": {
+        "properties": {"payload": {"required": ["sourceSystem", "sourceAlertId", "alertType", "detectedAt", "subjectReference"], "properties": {"sourceSystem": {"type": "string"}, "sourceAlertId": {"type": "string"}, "alertType": {"type": "string"}, "detectedAt": {"type": "string", "format": "date-time"}, "subjectReference": {"type": "string"}}}}
+      }
+    },
+    {
+      "if": {"properties": {"commandType": {"const": "AttachAlert"}}},
+      "then": {
+        "required": ["expectedCaseRevision", "policyId", "policyVersion"],
+        "properties": {"payload": {"required": ["caseId", "alertId", "linkReason"], "properties": {"caseId": {"type": "string"}, "alertId": {"type": "string"}, "linkReason": {"type": "string"}}}}
+      }
+    },
+    {
+      "if": {"properties": {"commandType": {"const": "CompleteStep"}}},
+      "then": {
+        "required": ["expectedCaseRevision", "policyId", "policyVersion"],
+        "properties": {"payload": {"required": ["caseId", "playbookRevision", "stepRunId", "evidenceIds"], "properties": {"caseId": {"type": "string"}, "playbookRevision": {"type": "integer", "minimum": 1}, "stepRunId": {"type": "string"}, "evidenceIds": {"type": "array", "items": {"type": "string"}}}}}
+      }
+    },
+    {
+      "if": {"properties": {"commandType": {"const": "RequestClosure"}}},
+      "then": {
+        "required": ["expectedCaseRevision", "policyId", "policyVersion"],
+        "properties": {"payload": {"required": ["caseId", "decisionId", "disposition", "evidenceIds"], "properties": {"caseId": {"type": "string"}, "decisionId": {"type": "string"}, "disposition": {"type": "string"}, "evidenceIds": {"type": "array", "items": {"type": "string"}}}}}
+      }
+    }
+  ]
+}

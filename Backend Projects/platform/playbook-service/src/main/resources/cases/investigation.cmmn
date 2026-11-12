@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/CMMN/20151109/MODEL"
+             xmlns:flowable="http://flowable.org/cmmn"
+             xmlns:cmmndi="http://www.omg.org/spec/CMMN/20151109/CMMNDI"
+             xmlns:dc="http://www.omg.org/spec/CMMN/20151109/DC"
+             xmlns:di="http://www.omg.org/spec/CMMN/20151109/DI"
+             targetNamespace="http://investigationhub.example/cases">
+  <case id="investigation" name="Synthetic financial crime investigation">
+    <casePlanModel id="investigationPlan" name="Investigation">
+      <planItem id="transactionReviewItem" name="Review transactions" definitionRef="transactionReviewTask">
+        <entryCriterion id="transactionReviewEntry" sentryRef="transactionReviewSentry" />
+      </planItem>
+      <planItem id="agentAnalysisItem" name="Agent transaction analysis" definitionRef="agentAnalysisTask">
+        <entryCriterion id="agentAnalysisEntry" sentryRef="agentAnalysisSentry" />
+      </planItem>
+      <planItem id="kycReviewItem" name="Review source of funds" definitionRef="kycReviewTask">
+        <entryCriterion id="kycEntry" sentryRef="kycSentry" />
+      </planItem>
+      <planItem id="combinedReviewItem" name="Review combined risk" definitionRef="combinedReviewTask">
+        <entryCriterion id="combinedEntry" sentryRef="combinedSentry" />
+      </planItem>
+      <planItem id="sanctionsReviewItem" name="Review sanctions match" definitionRef="sanctionsReviewTask">
+        <entryCriterion id="sanctionsReviewEntry" sentryRef="sanctionsReviewSentry" />
+      </planItem>
+      <planItem id="sanctionsEnrichmentItem" name="Agent sanctions enrichment" definitionRef="sanctionsEnrichmentTask">
+        <entryCriterion id="sanctionsEnrichmentEntry" sentryRef="sanctionsEnrichmentSentry" />
+      </planItem>
+      <planItem id="pepReviewItem" name="Review PEP and adverse media" definitionRef="pepReviewTask">
+        <entryCriterion id="pepReviewEntry" sentryRef="pepReviewSentry" />
+      </planItem>
+      <planItem id="crossRiskItem" name="Review cross-signal risk" definitionRef="crossRiskTask">
+        <entryCriterion id="crossRiskEntry" sentryRef="crossRiskSentry" />
+        <entryCriterion id="crossRiskSanctionsPepEntry" sentryRef="crossRiskSanctionsPepSentry" />
+      </planItem>
+      <sentry id="transactionReviewSentry"><ifPart><condition><![CDATA[${transaction_reviewRequired == true}]]></condition></ifPart></sentry>
+      <sentry id="agentAnalysisSentry"><ifPart><condition><![CDATA[${agent_transaction_analysisRequired == true}]]></condition></ifPart></sentry>
+      <sentry id="kycSentry"><ifPart><condition><![CDATA[${source_of_funds_reviewRequired == true}]]></condition></ifPart></sentry>
+      <sentry id="combinedSentry">
+        <planItemOnPart id="combinedAfterTransaction" sourceRef="transactionReviewItem"><standardEvent>complete</standardEvent></planItemOnPart>
+        <planItemOnPart id="combinedAfterKyc" sourceRef="kycReviewItem"><standardEvent>complete</standardEvent></planItemOnPart>
+        <ifPart><condition><![CDATA[${combined_risk_reviewRequired == true}]]></condition></ifPart>
+      </sentry>
+      <sentry id="sanctionsReviewSentry"><ifPart><condition><![CDATA[${sanctions_match_reviewRequired == true}]]></condition></ifPart></sentry>
+      <sentry id="sanctionsEnrichmentSentry"><ifPart><condition><![CDATA[${agent_sanctions_enrichmentRequired == true}]]></condition></ifPart></sentry>
+      <sentry id="pepReviewSentry"><ifPart><condition><![CDATA[${pep_adverse_media_reviewRequired == true}]]></condition></ifPart></sentry>
+      <sentry id="crossRiskSentry">
+        <planItemOnPart id="crossRiskAfterCombined" sourceRef="combinedReviewItem"><standardEvent>complete</standardEvent></planItemOnPart>
+        <planItemOnPart id="crossRiskAfterPep" sourceRef="pepReviewItem"><standardEvent>complete</standardEvent></planItemOnPart>
+        <ifPart><condition><![CDATA[${cross_risk_assessmentRequired == true && caseType == 'TRANSACTION_KYC_AND_PEP_REVIEW'}]]></condition></ifPart>
+      </sentry>
+      <sentry id="crossRiskSanctionsPepSentry">
+        <planItemOnPart id="crossRiskAfterSanctions" sourceRef="sanctionsReviewItem"><standardEvent>complete</standardEvent></planItemOnPart>
+        <planItemOnPart id="crossRiskAfterSanctionsPep" sourceRef="pepReviewItem"><standardEvent>complete</standardEvent></planItemOnPart>
+        <ifPart><condition><![CDATA[${cross_risk_assessmentRequired == true && caseType == 'SANCTIONS_AND_PEP_REVIEW'}]]></condition></ifPart>
+      </sentry>
+      <humanTask id="transactionReviewTask" name="Review transactions" flowable:candidateGroups="L1" />
+      <task id="agentAnalysisTask" name="Agent transaction analysis" flowable:type="external-worker" flowable:topic="transaction-analysis" />
+      <humanTask id="kycReviewTask" name="Review source of funds" flowable:candidateGroups="L1" />
+      <humanTask id="combinedReviewTask" name="Review combined risk" flowable:candidateGroups="L2" />
+      <humanTask id="sanctionsReviewTask" name="Review sanctions match" flowable:candidateGroups="L2" />
+      <task id="sanctionsEnrichmentTask" name="Agent sanctions enrichment" flowable:type="external-worker" flowable:topic="sanctions-enrichment" />
+      <humanTask id="pepReviewTask" name="Review PEP and adverse media" flowable:candidateGroups="L2" />
+      <humanTask id="crossRiskTask" name="Review cross-signal risk" flowable:candidateGroups="L3" />
+    </casePlanModel>
+  </case>
+  <cmmndi:CMMNDI>
+    <cmmndi:CMMNDiagram id="CMMNDiagram_investigation">
+      <cmmndi:CMMNShape id="CMMNShape_investigationPlan" cmmnElementRef="investigationPlan">
+        <dc:Bounds x="40" y="40" width="1060" height="620" />
+        <cmmndi:CMMNLabel />
+      </cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_transactionReviewItem" cmmnElementRef="transactionReviewItem">
+        <dc:Bounds x="110" y="150" width="160" height="90" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_agentAnalysisItem" cmmnElementRef="agentAnalysisItem">
+        <dc:Bounds x="350" y="150" width="160" height="90" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_kycReviewItem" cmmnElementRef="kycReviewItem">
+        <dc:Bounds x="590" y="150" width="160" height="90" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_combinedReviewItem" cmmnElementRef="combinedReviewItem">
+        <dc:Bounds x="830" y="150" width="160" height="90" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_sanctionsReviewItem" cmmnElementRef="sanctionsReviewItem">
+        <dc:Bounds x="110" y="400" width="160" height="90" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_sanctionsEnrichmentItem" cmmnElementRef="sanctionsEnrichmentItem">
+        <dc:Bounds x="350" y="400" width="160" height="90" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_pepReviewItem" cmmnElementRef="pepReviewItem">
+        <dc:Bounds x="590" y="400" width="160" height="90" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_crossRiskItem" cmmnElementRef="crossRiskItem">
+        <dc:Bounds x="830" y="400" width="160" height="90" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_transactionReviewEntry" cmmnElementRef="transactionReviewEntry"><dc:Bounds x="101" y="181" width="18" height="28" /><cmmndi:CMMNLabel /></cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_agentAnalysisEntry" cmmnElementRef="agentAnalysisEntry"><dc:Bounds x="341" y="181" width="18" height="28" /><cmmndi:CMMNLabel /></cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_kycEntry" cmmnElementRef="kycEntry"><dc:Bounds x="581" y="181" width="18" height="28" /><cmmndi:CMMNLabel /></cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_combinedEntry" cmmnElementRef="combinedEntry"><dc:Bounds x="821" y="181" width="18" height="28" /><cmmndi:CMMNLabel /></cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_sanctionsReviewEntry" cmmnElementRef="sanctionsReviewEntry"><dc:Bounds x="101" y="431" width="18" height="28" /><cmmndi:CMMNLabel /></cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_sanctionsEnrichmentEntry" cmmnElementRef="sanctionsEnrichmentEntry"><dc:Bounds x="341" y="431" width="18" height="28" /><cmmndi:CMMNLabel /></cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_pepReviewEntry" cmmnElementRef="pepReviewEntry"><dc:Bounds x="581" y="431" width="18" height="28" /><cmmndi:CMMNLabel /></cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_crossRiskEntry" cmmnElementRef="crossRiskEntry"><dc:Bounds x="821" y="412" width="18" height="28" /><cmmndi:CMMNLabel /></cmmndi:CMMNShape>
+      <cmmndi:CMMNShape id="CMMNShape_crossRiskSanctionsPepEntry" cmmnElementRef="crossRiskSanctionsPepEntry"><dc:Bounds x="821" y="451" width="18" height="28" /><cmmndi:CMMNLabel /></cmmndi:CMMNShape>
+      <cmmndi:CMMNEdge id="CMMNEdge_transactionToCombined" cmmnElementRef="transactionReviewItem" targetCMMNElementRef="combinedEntry">
+        <di:waypoint x="270" y="195" /><di:waypoint x="300" y="195" /><di:waypoint x="300" y="95" /><di:waypoint x="800" y="95" /><di:waypoint x="800" y="195" /><di:waypoint x="821" y="195" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNEdge>
+      <cmmndi:CMMNEdge id="CMMNEdge_kycToCombined" cmmnElementRef="kycReviewItem" targetCMMNElementRef="combinedEntry">
+        <di:waypoint x="750" y="195" /><di:waypoint x="821" y="195" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNEdge>
+      <cmmndi:CMMNEdge id="CMMNEdge_combinedToCross" cmmnElementRef="combinedReviewItem" targetCMMNElementRef="crossRiskEntry">
+        <di:waypoint x="990" y="195" /><di:waypoint x="1020" y="195" /><di:waypoint x="1020" y="426" /><di:waypoint x="821" y="426" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNEdge>
+      <cmmndi:CMMNEdge id="CMMNEdge_pepToCross" cmmnElementRef="pepReviewItem" targetCMMNElementRef="crossRiskEntry">
+        <di:waypoint x="750" y="426" /><di:waypoint x="821" y="426" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNEdge>
+      <cmmndi:CMMNEdge id="CMMNEdge_sanctionsToCross" cmmnElementRef="sanctionsReviewItem" targetCMMNElementRef="crossRiskSanctionsPepEntry">
+        <di:waypoint x="190" y="490" /><di:waypoint x="190" y="540" /><di:waypoint x="780" y="540" /><di:waypoint x="780" y="465" /><di:waypoint x="821" y="465" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNEdge>
+      <cmmndi:CMMNEdge id="CMMNEdge_pepToSanctionsCross" cmmnElementRef="pepReviewItem" targetCMMNElementRef="crossRiskSanctionsPepEntry">
+        <di:waypoint x="670" y="490" /><di:waypoint x="670" y="515" /><di:waypoint x="760" y="515" /><di:waypoint x="760" y="465" /><di:waypoint x="821" y="465" /><cmmndi:CMMNLabel />
+      </cmmndi:CMMNEdge>
+    </cmmndi:CMMNDiagram>
+  </cmmndi:CMMNDI>
+</definitions>

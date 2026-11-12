@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://investigation-hub.example/contracts/policy/v1",
+  "title": "Approved bank investigation policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["policyId", "version", "tenantId", "effectiveFrom", "caseGrouping", "caseTypes", "steps", "reviewStages", "agentAuthority", "closureRules"],
+  "properties": {
+    "policyId": {"type": "string", "minLength": 1},
+    "version": {"type": "integer", "minimum": 1},
+    "tenantId": {"type": "string", "minLength": 1},
+    "effectiveFrom": {"type": "string", "format": "date-time"},
+    "caseGrouping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sameVerifiedSubject", "joinWindowDays", "closedCaseBehavior"],
+      "properties": {
+        "sameVerifiedSubject": {"const": true},
+        "joinWindowDays": {"type": "integer", "minimum": 0},
+        "closedCaseBehavior": {"enum": ["CREATE_LINKED_CASE", "REOPEN_WITH_APPROVAL"]}
+      }
+    },
+    "caseTypes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "requiredAlertTypes", "priority"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "requiredAlertTypes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+          "priority": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "activation", "owner", "destinationId", "dataPoints", "required", "completionEvidence"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "activation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["allAlertTypes", "anyAlertTypes", "caseTypes"],
+            "properties": {
+              "allAlertTypes": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+              "anyAlertTypes": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+              "caseTypes": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+            }
+          },
+          "owner": {"enum": ["AGENT", "HUMAN", "AGENT_THEN_HUMAN"]},
+          "destinationId": {"type": "string", "minLength": 1},
+          "dataPoints": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+          "required": {"type": "boolean"},
+          "completionEvidence": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+        }
+      }
+    },
+    "reviewStages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "permittedActions", "nextStages"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "permittedActions": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+          "nextStages": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+        }
+      }
+    },
+    "agentAuthority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["permittedActions", "allowedCaseTypes"],
+      "properties": {
+        "permittedActions": {"type": "array", "uniqueItems": true, "items": {"enum": ["COMPLETE_STEP", "RECOMMEND_CLOSE", "CLOSE_CASE", "ESCALATE"]}},
+        "allowedCaseTypes": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      }
+    },
+    "closureRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["autonomousCaseTypes", "requireIndependentCheck", "humanApprovalStage"],
+      "properties": {
+        "autonomousCaseTypes": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "requireIndependentCheck": {"type": "boolean"},
+        "humanApprovalStage": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
+

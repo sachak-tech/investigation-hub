@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://investigation-hub.example/contracts/domain-event/v1",
+  "title": "Investigation domain event envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "eventType", "schemaVersion", "tenantId", "aggregateId", "aggregateRevision", "occurredAt", "correlationId", "actorId", "payload"],
+  "properties": {
+    "eventId": {"type": "string", "format": "uuid"},
+    "eventType": {"enum": ["AlertAccepted", "CaseAlertLinked", "CaseClassificationChanged", "PlaybookRevised", "StepCompleted", "DecisionInvalidated"]},
+    "schemaVersion": {"const": 1},
+    "tenantId": {"type": "string", "minLength": 1},
+    "aggregateId": {"type": "string", "minLength": 1},
+    "aggregateRevision": {"type": "integer", "minimum": 1},
+    "occurredAt": {"type": "string", "format": "date-time"},
+    "correlationId": {"type": "string", "minLength": 1},
+    "causationId": {"type": "string"},
+    "actorId": {"type": "string", "minLength": 1},
+    "policyId": {"type": "string"},
+    "policyVersion": {"type": "integer", "minimum": 1},
+    "payload": {"type": "object"}
+  },
+  "allOf": [
+    {"if": {"properties": {"eventType": {"const": "AlertAccepted"}}}, "then": {"properties": {"payload": {"required": ["alertId", "alertType", "subjectId", "detectedAt"]}}}},
+    {"if": {"properties": {"eventType": {"const": "CaseAlertLinked"}}}, "then": {"properties": {"payload": {"required": ["caseId", "alertId", "linkReason"]}}}},
+    {"if": {"properties": {"eventType": {"const": "CaseClassificationChanged"}}}, "then": {"properties": {"payload": {"required": ["caseId", "fromType", "toType", "triggerAlertId"]}}}},
+    {"if": {"properties": {"eventType": {"const": "PlaybookRevised"}}}, "then": {"properties": {"payload": {"required": ["caseId", "fromRevision", "toRevision", "addedStepIds", "supersededStepIds"]}}}},
+    {"if": {"properties": {"eventType": {"const": "StepCompleted"}}}, "then": {"properties": {"payload": {"required": ["caseId", "stepRunId", "evidenceIds"]}}}},
+    {"if": {"properties": {"eventType": {"const": "DecisionInvalidated"}}}, "then": {"properties": {"payload": {"required": ["caseId", "decisionId", "reason", "caseRevision"]}}}}
+  ]
+}
+

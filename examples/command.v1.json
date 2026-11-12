@@ -1,0 +1,17 @@
+{
+  "commandId": "571776a2-7ec0-4418-b120-b758ffef82c2",
+  "commandType": "AttachAlert",
+  "schemaVersion": 1,
+  "tenantId": "demo-bank",
+  "actorId": "case-service",
+  "correlationId": "corr-synthetic-case-1",
+  "idempotencyKey": "demo-bank:alert-kyc-1:case-1",
+  "expectedCaseRevision": 1,
+  "policyId": "synthetic-aml-policy",
+  "policyVersion": 1,
+  "payload": {
+    "caseId": "case-1",
+    "alertId": "alert-kyc-1",
+    "linkReason": "Verified subject and active join window"
+  }
+}

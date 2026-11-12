@@ -1,0 +1,14 @@
+{
+  "destinationId": "bank_source_of_funds",
+  "version": 1,
+  "tenantId": "demo-bank",
+  "kind": "EXTERNAL_SECTION",
+  "workspace": "CASE_INVESTIGATION",
+  "sectionId": "source-of-funds",
+  "focusField": "source",
+  "contextMapping": {
+    "caseId": "case.id",
+    "customerId": "case.primarySubjectId"
+  },
+  "externalSectionRef": "bank_source_of_funds"
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://investigation-hub.example/contracts/step-destination/v1",
+  "title": "Investigator step navigation destination",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["destinationId", "version", "tenantId", "kind", "workspace", "sectionId", "contextMapping"],
+  "properties": {
+    "destinationId": {"type": "string", "minLength": 1},
+    "version": {"type": "integer", "minimum": 1},
+    "tenantId": {"type": "string", "minLength": 1},
+    "kind": {"enum": ["BUILT_IN", "EXTERNAL_SECTION"]},
+    "workspace": {"const": "CASE_INVESTIGATION"},
+    "sectionId": {"type": "string", "minLength": 1},
+    "focusField": {"type": "string", "minLength": 1},
+    "contextMapping": {
+      "type": "object",
+      "required": ["caseId"],
+      "properties": {"caseId": {"const": "case.id"}},
+      "additionalProperties": {"type": "string", "minLength": 1}
+    },
+    "externalSectionRef": {"type": "string", "minLength": 1}
+  },
+  "allOf": [
+    {"if": {"properties": {"kind": {"const": "EXTERNAL_SECTION"}}}, "then": {"required": ["externalSectionRef"]}},
+    {"if": {"properties": {"kind": {"const": "BUILT_IN"}}}, "then": {"not": {"required": ["externalSectionRef"]}}}
+  ]
+}

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Investigation Hub · Flowable monitor</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f3f6f9; color: #183047; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input { font: inherit; }
+    header { background: #092b40; color: white; padding: 24px max(24px, calc((100vw - 1160px)/2)); }
+    header .eyebrow { color: #70dbcc; text-transform: uppercase; font-size: 11px; font-weight: 800; letter-spacing: .16em; }
+    h1 { margin: 6px 0 4px; font-size: clamp(24px, 3vw, 36px); line-height: 1.15; }
+    header p { color: #bad1df; margin: 0; font-size: 14px; }
+    main { max-width: 1208px; padding: 26px 24px 64px; margin: auto; }
+    .toolbar, .panel { background: white; border: 1px solid #dce6ec; box-shadow: 0 8px 24px #16354a0a; border-radius: 14px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; padding: 18px; }
+    .field { flex: 1 1 310px; }
+    label { display: block; color: #536b7a; font-size: 12px; font-weight: 750; margin-bottom: 6px; }
+    input { width: 100%; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #bbccd6; background: #fbfdfe; color: #183047; }
+    button { cursor: pointer; border: 1px solid #b4c8d2; border-radius: 8px; background: white; color: #153951; padding: 9px 13px; font-weight: 700; min-height: 40px; }
+    button:hover:not(:disabled) { border-color: #048b82; color: #026e69; background: #f1fffc; }
+    button:disabled { opacity: .45; cursor: default; }
+    button.primary { color: white; background: #087f78; border-color: #087f78; }
+    button.primary:hover:not(:disabled) { color: white; background: #006c65; }
+    .status { min-height: 24px; margin: 13px 2px; color: #527083; font-size: 13px; }
+    .status.error { color: #aa3232; }
+    .summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 16px 0; }
+    .metric { padding: 17px 20px; }
+    .metric small { display: block; color: #66808e; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+    .metric strong { display: block; font-size: 18px; overflow-wrap: anywhere; margin-top: 7px; }
+    .layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(275px, 1fr); gap: 16px; }
+    .panel { padding: 20px; min-width: 0; }
+    .panel h2 { font-size: 17px; margin: 0 0 5px; }
+    .hint { color: #68808f; font-size: 13px; margin: 0 0 18px; line-height: 1.5; }
+    .lane { border-left: 2px solid #b8d7d4; padding: 0 0 22px 20px; margin-left: 8px; position: relative; }
+    .lane:last-child { padding-bottom: 0; }
+    .lane::before { content: ""; position: absolute; top: 1px; left: -7px; width: 12px; height: 12px; background: #0c877e; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 1px #b8d7d4; }
+    .lane h3 { margin: 0 0 11px; color: #506b79; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 9px; }
+    .step { border: 1px solid #d9e5ea; border-radius: 10px; padding: 12px 13px; background: #fcfefe; min-height: 94px; }
+    .step.active { border-color: #5ab9b0; background: #f2fffc; }
+    .step.completed { border-color: #93bd9c; background: #f6fcf6; }
+    .step.available { border-style: dashed; }
+    .step-name { font-size: 14px; font-weight: 750; margin-bottom: 9px; }
+    .badge { display: inline-block; border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; background: #e8f0f4; color: #47677a; }
+    .badge.active { background: #d4f4ee; color: #006c65; }
+    .badge.completed { background: #dff3e2; color: #27703b; }
+    .badge.available { background: #edf1f4; color: #607684; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .task { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid #e5edf1; font-size: 13px; }
+    .task button { min-height: 32px; padding: 5px 9px; font-size: 12px; flex: none; }
+    .callout { padding: 12px; border: 1px solid #d9e7ed; background: #f7fbfd; border-radius: 8px; color: #426071; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .muted { color: #78909d; font-size: 13px; }
+    @media (max-width: 760px) { .layout, .summary { grid-template-columns: 1fr; } header { padding: 23px 24px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Milestone 0 · Local spike</div>
+    <h1>Flowable case monitor</h1>
+    <p>Watch a synthetic case respond to a new alert and an added playbook step.</p>
+  </header>
+  <main>
+    <section class="toolbar" aria-label="Case selector">
+      <div class="field"><label for="caseId">Flowable case instance ID</label><input id="caseId" placeholder="Create a demo case or paste an ID from smoke.py"></div>
+      <button id="open">Open case</button>
+      <button class="primary" id="create">Create demo case</button>
+    </section>
+    <div id="status" class="status" role="status" aria-live="polite">Create a demo case to begin.</div>
+    <section class="summary" aria-label="Case summary">
+      <div class="panel metric"><small>Classification</small><strong id="classification">—</strong></div>
+      <div class="panel metric"><small>Active steps</small><strong id="activeCount">—</strong></div>
+      <div class="panel metric"><small>Completed steps</small><strong id="completedCount">—</strong></div>
+    </section>
+    <div class="layout">
+      <section class="panel" aria-label="Playbook diagram">
+        <h2>Playbook diagram</h2>
+        <p class="hint">The lanes show why steps appear. Cards refresh every two seconds; these tasks can run in parallel.</p>
+        <div class="lane"><h3>Transaction alert · Initial investigation</h3><div class="cards" id="initial"></div></div>
+        <div class="lane"><h3>KYC alert · Added to same case</h3><div class="cards" id="kyc"></div></div>
+        <div class="lane"><h3>Policy extension · Injected step</h3><div class="cards" id="extension"></div></div>
+      </section>
+      <aside class="panel" aria-label="Demo controls and task details">
+        <h2>Demo controls</h2>
+        <p class="hint">Use these to see the CMMN case change. They act only on this synthetic spike.</p>
+        <div class="actions"><button id="addKyc">Add KYC alert</button><button id="inject">Inject extra step</button></div>
+        <h2>Human tasks</h2><div id="tasks" class="muted">No case selected.</div>
+        <h2 style="margin-top:22px">Python agent</h2>
+        <p class="hint" style="margin-bottom:9px">Run <code>python3 worker.py</code> from the spike directory to complete its external-worker task.</p>
+        <div class="callout" id="finding">No finding yet.</div>
+      </aside>
+    </div>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    const api = "/spike";
+    let selectedCase = new URLSearchParams(location.search).get("caseId") || "";
+    let busy = false;
+    const known = [
+      {name: "Review transactions", lane: "initial"},
+      {name: "Agent transaction analysis", lane: "initial"},
+      {name: "Review source of funds", lane: "kyc"},
+      {name: "Review external source", lane: "extension"}
+    ];
+
+    async function request(path, method = "GET", data) {
+      const response = await fetch(api + path, {
+        method,
+        headers: data ? {"Content-Type": "application/json"} : {},
+        body: data ? JSON.stringify(data) : undefined
+      });
+      if (!response.ok) throw new Error(method + " " + path + " returned " + response.status);
+      const body = await response.text();
+      return body ? JSON.parse(body) : null;
+    }
+
+    function status(message, isError = false) {
+      $("status").textContent = message;
+      $("status").classList.toggle("error", isError);
+    }
+
+    function card(name, item) {
+      const node = document.createElement("div");
+      const state = item ? item.state : "not added";
+      node.className = "step " + (item ? item.state : "");
+      const title = document.createElement("div");
+      title.className = "step-name";
+      title.textContent = name;
+      const badge = document.createElement("span");
+      badge.className = "badge " + (item ? item.state : "");
+      badge.textContent = state;
+      node.append(title, badge);
+      return node;
+    }
+
+    function render(view, history) {
+      const byName = new Map(history.map(item => [item.name, item]));
+      for (const item of view.steps) byName.set(item.name, item);
+      for (const lane of ["initial", "kyc", "extension"]) $(lane).replaceChildren();
+      for (const step of known) $(step.lane).append(card(step.name, byName.get(step.name)));
+      $("classification").textContent = String(view.caseType || "—").replaceAll("_", " ");
+      $("activeCount").textContent = String([...byName.values()].filter(item => item.state === "active").length);
+      $("completedCount").textContent = String([...byName.values()].filter(item => item.state === "completed").length);
+      $("finding").textContent = view.agentFinding || "No finding yet. Run python3 worker.py in another terminal.";
+      $("tasks").replaceChildren();
+      if (!view.humanTasks.length) $("tasks").textContent = "No active human tasks.";
+      for (const task of view.humanTasks) {
+        const row = document.createElement("div");
+        row.className = "task";
+        const name = document.createElement("span");
+        name.textContent = task.name;
+        const button = document.createElement("button");
+        button.textContent = "Complete";
+        button.addEventListener("click", () => mutate("/tasks/" + encodeURIComponent(task.id) + "/complete", "Completed " + task.name));
+        row.append(name, button);
+        $("tasks").append(row);
+      }
+      $("addKyc").disabled = view.caseType === "TRANSACTION_AND_KYC_REVIEW";
+      $("inject").disabled = byName.has("Review external source");
+    }
+
+    async function refresh(silent = false) {
+      if (!selectedCase || busy) return;
+      try {
+        const id = encodeURIComponent(selectedCase);
+        const [view, history] = await Promise.all([request("/cases/" + id), request("/cases/" + id + "/history")]);
+        render(view, history);
+        if (!silent) status("Case loaded. Live refresh is on.");
+      } catch (error) {
+        status(error.message, true);
+      }
+    }
+
+    async function mutate(path, message) {
+      if (!selectedCase || busy) return;
+      busy = true;
+      try {
+        await request(path, "POST");
+        status(message);
+      } catch (error) {
+        status(error.message, true);
+      } finally {
+        busy = false;
+        refresh(true);
+      }
+    }
+
+    $("create").addEventListener("click", async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const started = await request("/cases", "POST", {caseId: "CASE-" + crypto.randomUUID().slice(0, 8)});
+        selectedCase = started.flowableCaseInstanceId;
+        $("caseId").value = selectedCase;
+        history.replaceState(null, "", "?caseId=" + encodeURIComponent(selectedCase));
+        status("Demo case created.");
+      } catch (error) {
+        status(error.message, true);
+      } finally {
+        busy = false;
+        refresh(true);
+      }
+    });
+    $("open").addEventListener("click", () => {
+      selectedCase = $("caseId").value.trim();
+      history.replaceState(null, "", selectedCase ? "?caseId=" + encodeURIComponent(selectedCase) : location.pathname);
+      refresh();
+    });
+    $("caseId").addEventListener("keydown", event => { if (event.key === "Enter") $("open").click(); });
+    $("addKyc").addEventListener("click", () => mutate("/cases/" + encodeURIComponent(selectedCase) + "/kyc-alert", "KYC alert added to this case."));
+    $("inject").addEventListener("click", () => mutate("/cases/" + encodeURIComponent(selectedCase) + "/extra-step", "Extra review step injected."));
+    $("caseId").value = selectedCase;
+    $("addKyc").disabled = true;
+    $("inject").disabled = true;
+    if (selectedCase) refresh();
+    setInterval(() => refresh(true), 2000);
+  </script>
+</body>
+</html>

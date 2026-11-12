@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/CMMN/20151109/MODEL"
+             xmlns:flowable="http://flowable.org/cmmn"
+             targetNamespace="http://investigationhub.example/cases">
+  <case id="extension" name="Approved extra review step library">
+    <casePlanModel id="extensionPlan" name="Extension library">
+      <planItem id="extraReviewItem" name="Review external source" definitionRef="extraReviewTask" />
+      <humanTask id="extraReviewTask" name="Review external source" flowable:candidateGroups="L4" />
+    </casePlanModel>
+  </case>
+</definitions>
+

@@ -1,0 +1,39 @@
+{
+  "sectionId": "bank_source_of_funds",
+  "version": 1,
+  "tenantId": "demo-bank",
+  "connector": {
+    "endpointRef": "bank-api/source-of-funds",
+    "method": "GET",
+    "credentialRef": "bank-source-of-funds-credential",
+    "timeoutMs": 3000
+  },
+  "requestMapping": {
+    "customerId": "case.primarySubjectId",
+    "from": "case.reviewPeriod.start",
+    "to": "case.reviewPeriod.end"
+  },
+  "responseSchema": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": ["source", "declaredAmount", "verifiedAt"],
+      "properties": {
+        "source": {"type": "string"},
+        "declaredAmount": {"type": "number"},
+        "verifiedAt": {"type": "string", "format": "date-time"}
+      }
+    }
+  },
+  "presentation": {
+    "kind": "TABLE",
+    "columns": [
+      {"field": "source", "label": "Source"},
+      {"field": "declaredAmount", "label": "Declared amount"},
+      {"field": "verifiedAt", "label": "Verified at"}
+    ]
+  },
+  "evidenceFields": ["source", "declaredAmount", "verifiedAt"],
+  "allowedRoles": ["L1", "L2", "L3", "L4", "L5"]
+}
+
